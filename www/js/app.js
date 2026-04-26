@@ -8,7 +8,7 @@
   // ----- 国際化 -----
   const I18N = {
     ja: {
-      'app.title': 'hihaho QR プレーヤー',
+      'app.title': 'QR動画',
       'app.scan': 'QRコードをスキャン',
       'app.manualInput': 'URLを直接入力',
       'app.urlPlaceholder': 'https://player.hihaho.com/...',
@@ -57,7 +57,7 @@
       'player.openInBrowser': 'ブラウザで開く',
     },
     en: {
-      'app.title': 'hihaho QR Player',
+      'app.title': 'QR Video',
       'app.scan': 'Scan QR Code',
       'app.manualInput': 'Enter URL directly',
       'app.urlPlaceholder': 'https://player.hihaho.com/...',

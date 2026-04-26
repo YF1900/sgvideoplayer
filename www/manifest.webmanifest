@@ -1,6 +1,6 @@
 {
-  "name": "hihaho QR プレーヤー",
-  "short_name": "hihaho QR",
+  "name": "QR動画",
+  "short_name": "QR動画",
   "description": "hihaho の QRコードを読み取って動画を全画面再生するアプリ",
   "start_url": "./",
   "scope": "./",
