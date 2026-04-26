@@ -164,14 +164,40 @@
       </header>
       <section class="menu-section">
         <h3 data-i18n="menu.language">言語</h3>
-        <div class="menu-lang-buttons">
-          <button class="menu-lang-btn" type="button" data-lang="ja">
+        <div class="menu-options">
+          <button class="menu-option-btn menu-lang-btn" type="button" data-lang="ja">
             <span data-i18n="menu.langJa">日本語</span>
-            <span class="material-symbols-outlined menu-lang-check" aria-hidden="true">check</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
           </button>
-          <button class="menu-lang-btn" type="button" data-lang="en">
+          <button class="menu-option-btn menu-lang-btn" type="button" data-lang="en">
             <span data-i18n="menu.langEn">English</span>
-            <span class="material-symbols-outlined menu-lang-check" aria-hidden="true">check</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="menu-section">
+        <h3 data-i18n="menu.sort">並び替え</h3>
+        <div class="menu-options">
+          <button class="menu-option-btn menu-sort-btn" type="button" data-sort="date_desc">
+            <span data-i18n="sort.dateDesc">日付 (新しい順)</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
+          </button>
+          <button class="menu-option-btn menu-sort-btn" type="button" data-sort="date_asc">
+            <span data-i18n="sort.dateAsc">日付 (古い順)</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
+          </button>
+          <button class="menu-option-btn menu-sort-btn" type="button" data-sort="name_asc">
+            <span data-i18n="sort.nameAsc">名前 (A→Z)</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
+          </button>
+          <button class="menu-option-btn menu-sort-btn" type="button" data-sort="name_desc">
+            <span data-i18n="sort.nameDesc">名前 (Z→A)</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
+          </button>
+          <button class="menu-option-btn menu-sort-btn" type="button" data-sort="custom">
+            <span data-i18n="sort.custom">カスタム順 (ドラッグ)</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
           </button>
         </div>
       </section>
@@ -179,6 +205,7 @@
   </div>
 
   <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

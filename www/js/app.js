@@ -4,6 +4,9 @@
   const STORAGE_KEY = 'hihaho-qr-history-v1';
   const THUMBS_KEY = 'hihaho-qr-thumbs-v1';
   const LANG_KEY = 'hihaho-qr-lang';
+  const SORT_KEY = 'hihaho-qr-sort';
+  const SORT_MODES = ['date_desc', 'date_asc', 'name_asc', 'name_desc', 'custom'];
+  const DEFAULT_SORT = 'date_desc';
 
   // ----- 国際化 -----
   const I18N = {
@@ -27,6 +30,12 @@
       'menu.language': '言語',
       'menu.langJa': '日本語',
       'menu.langEn': 'English',
+      'menu.sort': '並び替え',
+      'sort.dateDesc': '日付 (新しい順)',
+      'sort.dateAsc': '日付 (古い順)',
+      'sort.nameAsc': '名前 (A→Z)',
+      'sort.nameDesc': '名前 (Z→A)',
+      'sort.custom': 'カスタム順 (ドラッグ)',
       'install.heading': 'アプリとして使う',
       'install.ios':
         'Safari の「共有」ボタンから「ホーム画面に追加」を選ぶと、URLバーなしの全画面アプリとして使えます。',
@@ -76,6 +85,12 @@
       'menu.language': 'Language',
       'menu.langJa': '日本語',
       'menu.langEn': 'English',
+      'menu.sort': 'Sort',
+      'sort.dateDesc': 'Date (newest)',
+      'sort.dateAsc': 'Date (oldest)',
+      'sort.nameAsc': 'Name (A→Z)',
+      'sort.nameDesc': 'Name (Z→A)',
+      'sort.custom': 'Custom (drag)',
       'install.heading': 'Install as app',
       'install.ios':
         'Use Safari\'s Share button > "Add to Home Screen" to install this site as a fullscreen app.',
@@ -483,11 +498,46 @@
 
   // ----- 履歴の描画 -----
 
-  // ----- 検索 -----
+  // ----- 検索 + 並び替え -----
   let searchQuery = '';
 
+  function getSortMode() {
+    const stored = localStorage.getItem(SORT_KEY);
+    return SORT_MODES.includes(stored) ? stored : DEFAULT_SORT;
+  }
+
+  function setSortMode(mode) {
+    if (!SORT_MODES.includes(mode)) return;
+    localStorage.setItem(SORT_KEY, mode);
+    refreshSortActive();
+    renderHistory();
+  }
+
+  function applySort(items) {
+    const mode = getSortMode();
+    if (mode === 'custom') return items.slice();
+    const sorted = items.slice();
+    if (mode === 'date_asc') {
+      sorted.sort((a, b) => a.addedAt - b.addedAt);
+    } else if (mode === 'date_desc') {
+      sorted.sort((a, b) => b.addedAt - a.addedAt);
+    } else if (mode === 'name_asc' || mode === 'name_desc') {
+      const collator = new Intl.Collator(getLang() === 'ja' ? 'ja' : 'en', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+      sorted.sort((a, b) => {
+        const an = a.title || a.uuid;
+        const bn = b.title || b.uuid;
+        const cmp = collator.compare(an, bn);
+        return mode === 'name_asc' ? cmp : -cmp;
+      });
+    }
+    return sorted;
+  }
+
   function getFilteredHistory() {
-    const all = loadHistory();
+    const all = applySort(loadHistory());
     const q = searchQuery.trim().toLowerCase();
     if (!q) return all;
     return all.filter((item) => {
@@ -496,6 +546,42 @@
       const version = (item.version ? String(item.version) : '').toLowerCase();
       return title.includes(q) || uuid.includes(q) || version.includes(q);
     });
+  }
+
+  // ドラッグ&ドロップ後に history-list の DOM 上の順序を localStorage に反映する。
+  // 検索でフィルタ中の場合は、表示されている要素群だけを並び替えて、非表示の
+  // 要素は元のインデックス位置に保ったままにする。
+  function saveCustomOrder() {
+    const listEl = document.getElementById('history-list');
+    if (!listEl) return;
+    const visibleUuids = Array.from(listEl.querySelectorAll('[data-uuid]')).map(
+      (el) => el.dataset.uuid
+    );
+    const history = loadHistory();
+    if (visibleUuids.length === history.length) {
+      const map = new Map(history.map((h) => [h.uuid, h]));
+      const reordered = visibleUuids
+        .map((uuid) => map.get(uuid))
+        .filter(Boolean);
+      saveHistory(reordered);
+      return;
+    }
+    const visibleSet = new Set(visibleUuids);
+    const visibleOriginalIndices = [];
+    history.forEach((h, i) => {
+      if (visibleSet.has(h.uuid)) visibleOriginalIndices.push(i);
+    });
+    const visibleMap = new Map(
+      history.filter((h) => visibleSet.has(h.uuid)).map((h) => [h.uuid, h])
+    );
+    const newOrderItems = visibleUuids
+      .map((uuid) => visibleMap.get(uuid))
+      .filter(Boolean);
+    const result = history.slice();
+    visibleOriginalIndices.forEach((origIdx, k) => {
+      if (newOrderItems[k]) result[origIdx] = newOrderItems[k];
+    });
+    saveHistory(result);
   }
 
   function renderHistory() {
@@ -525,6 +611,7 @@
     for (const item of history) {
       const li = document.createElement('li');
       li.className = 'history-item';
+      li.dataset.uuid = item.uuid;
 
       const thumb = document.createElement('div');
       thumb.className = 'history-thumb';
@@ -1039,6 +1126,13 @@
     });
   }
 
+  function refreshSortActive() {
+    const current = getSortMode();
+    document.querySelectorAll('.menu-sort-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.sort === current);
+    });
+  }
+
   function setupMenu() {
     const menuBtn = document.getElementById('menu-btn');
     const overlay = document.getElementById('menu-overlay');
@@ -1049,6 +1143,7 @@
       overlay.classList.remove('hidden');
       overlay.setAttribute('aria-hidden', 'false');
       refreshLangActive();
+      refreshSortActive();
     }
     function closeMenu() {
       overlay.classList.add('hidden');
@@ -1072,12 +1167,47 @@
         if (lang) setLang(lang);
       });
     });
+
+    document.querySelectorAll('.menu-sort-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.sort;
+        if (mode) {
+          setSortMode(mode);
+          closeMenu();
+        }
+      });
+    });
+  }
+
+  // ----- 長押しドラッグ&ドロップ並び替え -----
+  function setupSortable() {
+    const list = document.getElementById('history-list');
+    if (!list || typeof Sortable === 'undefined') return;
+    new Sortable(list, {
+      // モバイルは長押し (500ms) してから初めてドラッグ開始。
+      // PC は遅延なしで通常のドラッグ。
+      delay: 500,
+      delayOnTouchOnly: true,
+      animation: 180,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      // 再生/削除ボタンを長押ししてもドラッグは開始しない
+      filter: '.history-actions, .history-actions *',
+      preventOnFilter: false,
+      onEnd: () => {
+        saveCustomOrder();
+        // ドラッグで並び替えた瞬間にカスタム順モードへ切り替え (date_desc 等のソートが
+        // 適用されたままだと次の renderHistory で順序が戻ってしまうため)
+        setSortMode('custom');
+      },
+    });
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     applyTranslations();
     setupMenu();
     renderHistory();
+    setupSortable();
     setupInstallBanner();
     setupFullscreenToggle();
     // 既存履歴のうちタイトル/サムネイルが揃っていないものを後追いで取得

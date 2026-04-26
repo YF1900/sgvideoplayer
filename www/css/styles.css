@@ -119,6 +119,8 @@ button {
   padding: calc(var(--safe-top) + 12px) 0 calc(var(--safe-bottom) + 12px);
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
   animation: slideInLeft 0.22s ease-out;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @keyframes slideInLeft {
@@ -154,13 +156,13 @@ button {
   padding: 0 4px;
 }
 
-.menu-lang-buttons {
+.menu-options {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.menu-lang-btn {
+.menu-option-btn {
   background: var(--bg-elev);
   border: 1px solid transparent;
   color: var(--text);
@@ -177,22 +179,22 @@ button {
   font-family: inherit;
 }
 
-.menu-lang-btn:active {
+.menu-option-btn:active {
   background: var(--bg-elev-2);
 }
 
-.menu-lang-btn .menu-lang-check {
+.menu-option-btn .menu-option-check {
   font-size: 18px;
   color: var(--accent);
   visibility: hidden;
 }
 
-.menu-lang-btn.active {
+.menu-option-btn.active {
   border-color: var(--accent);
   background: var(--bg-elev-2);
 }
 
-.menu-lang-btn.active .menu-lang-check {
+.menu-option-btn.active .menu-option-check {
   visibility: visible;
 }
 
@@ -433,10 +435,25 @@ button {
   border-radius: 12px;
   padding: 12px;
   transition: background 0.15s ease;
+  /* タップで意図せずテキスト選択が走らないようにする (長押しドラッグ前の選択防止) */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .history-item:active {
   background: var(--bg-elev-2);
+}
+
+/* Sortable.js のドラッグ中の状態 */
+.history-item.sortable-chosen {
+  background: var(--bg-elev-2);
+  cursor: grabbing;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.history-item.sortable-ghost {
+  opacity: 0.35;
 }
 
 .history-thumb {
