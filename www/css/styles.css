@@ -550,20 +550,32 @@ button {
   min-height: 320px;
 }
 
-.qr-reader video {
-  width: 100% !important;
-  height: 100% !important;
+#qr-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+  background: #000;
 }
 
-/* このアプリで使用しないライブラリ標準 UI を非表示 */
-#qr-reader__dashboard,
-#qr-reader__camera_selection,
-#qr-reader__filescan_input,
-#qr-reader__file_scan_button,
-#qr-reader__header_message,
-#qr-reader__status_span {
-  display: none !important;
+.qr-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.qr-frame {
+  width: 70vmin;
+  height: 70vmin;
+  max-width: 280px;
+  max-height: 280px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
 }
 
 .scan-hint {

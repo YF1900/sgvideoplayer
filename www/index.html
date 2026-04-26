@@ -105,7 +105,12 @@
       </button>
       <h2>QRコードをスキャン</h2>
     </header>
-    <div id="qr-reader" class="qr-reader"></div>
+    <div id="qr-reader" class="qr-reader">
+      <video id="qr-video" playsinline muted autoplay></video>
+      <div class="qr-overlay" aria-hidden="true">
+        <div class="qr-frame"></div>
+      </div>
+    </div>
     <p class="scan-hint">hihaho の QRコードをカメラに向けてください</p>
     <p id="scan-error" class="scan-error hidden"></p>
   </section>
@@ -141,7 +146,7 @@
     </div>
   </section>
 
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -462,10 +462,17 @@
     document.getElementById(id).classList.add('active');
   }
 
-  // ----- QRスキャナ -----
-  let qrScanner = null;
-  let scanLocked = false; // 1回読み取れば以降の連続コールバックを無視
+  // ----- QRスキャナ (getUserMedia + jsQR の自前実装) -----
+  // html5-qrcode は内部で DOM やストリームを抱え込み、停止/再開のサイクルで
+  // 残留状態が原因の不具合 (2 回目以降に映像が下半分しか出ない等) が起こる。
+  // ストリーム取得とフレーム解析を完全に自前で行うことで、再利用される DOM を
+  // 自分達の <video> に固定できるためライフサイクルが追跡しやすくなる。
+  let scanLocked = false; // 1 回検出したら以降のフレーム解析を無視
   let scannerStarting = false; // 多重起動防止
+  let activeStream = null;
+  let scanRafId = null;
+  let scanCanvas = null;
+  let scanCtx = null;
 
   function showScanError(msg) {
     const el = document.getElementById('scan-error');
@@ -477,95 +484,118 @@
     document.getElementById('scan-error').classList.add('hidden');
   }
 
-  // html5-qrcode は qr-reader 要素自身に inline style (height/width 等) を
-  // 書き込んだり、子要素 (video/canvas) を残したりすることがある。
-  // 単に innerHTML を空にしても親要素に残ったスタイルが新しいインスタンスの
-  // 初期サイズ計算を狂わせるため、要素ごと丸ごと作り直す。
-  function ensureFreshQrReader() {
-    const old = document.getElementById('qr-reader');
-    if (!old || !old.parentNode) return null;
-    const fresh = document.createElement('div');
-    fresh.id = 'qr-reader';
-    fresh.className = old.className;
-    old.parentNode.replaceChild(fresh, old);
-    return fresh;
-  }
-
   async function startScanner() {
     if (scannerStarting) return;
     scannerStarting = true;
     try {
       clearScanError();
-      // PWA standalone (or Capacitor native) はすでに全画面なので
-      // requestFullscreen を呼ぶとレイアウトが不安定になることがある。
-      // ブラウザモードのときだけ URL バーを隠す目的で呼ぶ。
       if (!isStandalone() && !isCapacitorNative()) {
         tryEnterFullscreen(document.documentElement);
       }
       showScreen('scan-screen');
       scanLocked = false;
 
-      if (typeof Html5Qrcode === 'undefined') {
+      if (typeof jsQR === 'undefined') {
         showScanError(
           'QRスキャナの読み込みに失敗しました。ネットワーク接続を確認してください。'
         );
         return;
       }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showScanError(
+          'このブラウザはカメラの取得に対応していません。'
+        );
+        return;
+      }
 
-      // 前回の実行が残っている場合に備えて完全に停止 + DOM/カメラ解放
+      // 前回の実行が残っている場合は完全に停止してカメラを解放
       await stopScanner();
 
-      // qr-reader 要素自体を新規生成し、html5-qrcode が書き込んだ inline
-      // style / 残留子ノードを完全に取り除く。
-      ensureFreshQrReader();
-
-      // 画面切替直後は flex の採寸が確定していないことがあり、ライブラリが
-      // qr-reader の寸法を 0 と見なすと video が縮んだまま固定化される。
-      // また iOS Safari は前回 getUserMedia から短時間で再取得するとカメラ
-      // ハードウェアが解放されておらずフリーズしたストリームを返すことがある。
-      // 2 フレーム待機 + 強制 reflow + 250ms スリープで採寸とカメラ解放を待つ。
-      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
-      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
-      const readerEl = document.getElementById('qr-reader');
-      if (readerEl) {
-        // offsetHeight 読み取りで強制レイアウト
-        // eslint-disable-next-line no-unused-expressions
-        readerEl.offsetHeight;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 250));
-
-      qrScanner = new Html5Qrcode('qr-reader', { verbose: false });
-
-      const config = {
-        fps: 10,
-        qrbox: (vw, vh) => {
-          const min = Math.min(vw, vh);
-          const size = Math.floor(min * 0.7);
-          return { width: size, height: size };
-        },
-        // aspectRatio: 1.0 は html5-qrcode に内側ラッパーを 1:1 (= 親要素の
-        // 短辺) で構成させ、コンテナ全体を覆わせるためのトリック。
-        // 外すとライブラリが撮影解像度のアスペクト (典型的に 16:9) で
-        // ラッパーを作るため、portrait の qr-reader だと下半分が黒く残る。
-        aspectRatio: 1.0,
-      };
-
+      let stream;
       try {
-        await qrScanner.start(
-          { facingMode: 'environment' },
-          config,
-          onScanSuccess,
-          () => {} // スキャン中の失敗は無視
-        );
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
       } catch (err) {
+        console.error('getUserMedia failed', err);
         showScanError(
           'カメラを起動できませんでした。ブラウザの設定でカメラの使用を許可してください。'
         );
-        console.error(err);
+        return;
       }
+
+      activeStream = stream;
+      const video = document.getElementById('qr-video');
+      // iOS Safari でインライン再生させるための属性 (HTML 側にも書いているが
+      // 二重に確実に設定しておく)
+      video.setAttribute('playsinline', '');
+      video.muted = true;
+      video.srcObject = stream;
+      try {
+        await video.play();
+      } catch {
+        // autoplay 属性で再生されるため明示 play は失敗しても良い
+      }
+
+      startScanLoop(video);
     } finally {
       scannerStarting = false;
     }
+  }
+
+  function startScanLoop(video) {
+    if (!scanCanvas) {
+      scanCanvas = document.createElement('canvas');
+      scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+    }
+
+    const tick = () => {
+      scanRafId = null;
+      if (!activeStream) return; // 既に停止
+      if (scanLocked) return;
+      if (video.readyState < video.HAVE_ENOUGH_DATA) {
+        scanRafId = requestAnimationFrame(tick);
+        return;
+      }
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (!vw || !vh) {
+        scanRafId = requestAnimationFrame(tick);
+        return;
+      }
+
+      // QR の検出は中央正方領域だけで十分。サンプリング解像度を抑えて負荷軽減。
+      const cropSize = Math.min(vw, vh);
+      const cropX = (vw - cropSize) / 2;
+      const cropY = (vh - cropSize) / 2;
+      const targetSize = Math.min(cropSize, 480);
+
+      if (scanCanvas.width !== targetSize) scanCanvas.width = targetSize;
+      if (scanCanvas.height !== targetSize) scanCanvas.height = targetSize;
+
+      scanCtx.drawImage(
+        video,
+        cropX, cropY, cropSize, cropSize,
+        0, 0, targetSize, targetSize
+      );
+      const imgData = scanCtx.getImageData(0, 0, targetSize, targetSize);
+      const code = jsQR(imgData.data, targetSize, targetSize, {
+        inversionAttempts: 'dontInvert',
+      });
+
+      if (code && code.data) {
+        onScanSuccess(code.data);
+        return; // 検出後はループを止める (onScanSuccess が stopScanner を呼ぶ)
+      }
+      scanRafId = requestAnimationFrame(tick);
+    };
+
+    scanRafId = requestAnimationFrame(tick);
   }
 
   async function onScanSuccess(decodedText) {
@@ -594,41 +624,24 @@
   }
 
   async function stopScanner() {
-    // 取り込んだローカル参照に対して操作する。再入時の二重 stop を避けるため
-    // qrScanner はここで先に null に戻しておく。
-    const scanner = qrScanner;
-    qrScanner = null;
-    if (scanner) {
-      try {
-        if (scanner.isScanning) {
-          await scanner.stop();
-        }
-      } catch {}
-      try {
-        scanner.clear();
-      } catch {}
+    if (scanRafId) {
+      cancelAnimationFrame(scanRafId);
+      scanRafId = null;
     }
-    // qr-reader 配下に残った video / MediaStream が確実に解放されるよう、
-    // すべての track を明示的に stop する。これがないと次回 getUserMedia 呼び出し
-    // と前回のカメラリリースがレースしてカメラ起動が失敗することがある。
-    const reader = document.getElementById('qr-reader');
-    if (reader) {
-      reader.querySelectorAll('video').forEach((v) => {
-        try {
-          const stream = v.srcObject;
-          if (stream && typeof stream.getTracks === 'function') {
-            stream.getTracks().forEach((t) => {
-              try { t.stop(); } catch {}
-            });
-          }
-          v.srcObject = null;
-          v.pause();
-          v.removeAttribute('src');
-        } catch {}
+    if (activeStream) {
+      activeStream.getTracks().forEach((t) => {
+        try { t.stop(); } catch {}
       });
-      // 要素自体を作り直して、ライブラリが残した inline style や属性も含めて
-      // 完全にリセットする。
-      ensureFreshQrReader();
+      activeStream = null;
+    }
+    const video = document.getElementById('qr-video');
+    if (video) {
+      try {
+        video.pause();
+        video.srcObject = null;
+        video.removeAttribute('src');
+        if (typeof video.load === 'function') video.load();
+      } catch {}
     }
   }
 
