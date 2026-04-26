@@ -52,6 +52,16 @@
       'data.importError': 'ファイルを読み込めませんでした。',
       'data.importParseError': 'JSON の解析に失敗しました。',
       'data.importInvalid': '対応していない形式のファイルです。',
+      'data.qrExport': 'QRコードで共有',
+      'qr.exportTitle': 'QRコードで履歴を共有',
+      'qr.exportHint':
+        'もう一台のアプリで QR スキャンすると履歴が取り込まれます。共有されるのは UUID のみで、タイトル / 再生回数 / 並び替えは引き継がれません。',
+      'qr.exportItemCount': '{n}件の動画',
+      'qr.tooManyItems': 'QRコードに収められる件数 ({max}件) を超えています。JSON ファイル書き出しをご利用ください。',
+      'qr.exportFailed': 'QRコードの生成に失敗しました。',
+      'qr.exportEmpty': '履歴が空です。',
+      'qr.imported': 'QRコードから {n} 件の履歴を取り込みました。',
+      'qr.close': '閉じる',
       'menu.closeButtonPos': '動画を閉じるボタンの位置',
       'pos.topLeft': '左上',
       'pos.topRight': '右上',
@@ -145,6 +155,16 @@
       'data.importError': 'Failed to read the file.',
       'data.importParseError': 'Failed to parse JSON.',
       'data.importInvalid': 'Unsupported file format.',
+      'data.qrExport': 'Share via QR',
+      'qr.exportTitle': 'Share history via QR',
+      'qr.exportHint':
+        'Scan this QR with the app on another device to import the list. Only UUIDs are transferred; titles, play counts and ordering are not preserved.',
+      'qr.exportItemCount': '{n} items',
+      'qr.tooManyItems': 'Too many items for one QR code (max {max}). Please use the JSON file export instead.',
+      'qr.exportFailed': 'Failed to generate the QR code.',
+      'qr.exportEmpty': 'No history to share.',
+      'qr.imported': 'Imported {n} entries from QR.',
+      'qr.close': 'Close',
       'menu.closeButtonPos': 'Close button position',
       'pos.topLeft': 'Top left',
       'pos.topRight': 'Top right',
@@ -598,6 +618,165 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 
     showToast(t('data.exported'));
+  }
+
+  // ----- QRコード経由の一括共有 -----
+  // フォーマット (QR alphanumeric モードに最適化):
+  //   "QRVHIST1:" + (大文字16進UUID)*N
+  //   各 UUID はハイフンを除いた 32 桁。区切りなし。
+  // タイトルや再生回数は転送せず、UUID のみ。受信側で backfill によって
+  // タイトル/サムネイルを再取得する。
+  const QR_EXPORT_MARKER = 'QRVHIST1:';
+  const QR_EXPORT_MAX_ITEMS = 100;
+
+  function buildQrPayload(items) {
+    let s = QR_EXPORT_MARKER;
+    for (const item of items) {
+      s += item.uuid.replace(/-/g, '').toUpperCase();
+    }
+    return s;
+  }
+
+  function parseQrImportPayload(text) {
+    if (typeof text !== 'string') return null;
+    if (!text.startsWith(QR_EXPORT_MARKER)) return null;
+    const data = text.slice(QR_EXPORT_MARKER.length).trim();
+    if (data.length === 0 || data.length % 32 !== 0) return null;
+    if (!/^[0-9A-F]+$/.test(data)) return null;
+    const uuids = [];
+    for (let i = 0; i < data.length; i += 32) {
+      const hex = data.slice(i, i + 32).toLowerCase();
+      const uuid =
+        hex.slice(0, 8) +
+        '-' +
+        hex.slice(8, 12) +
+        '-' +
+        hex.slice(12, 16) +
+        '-' +
+        hex.slice(16, 20) +
+        '-' +
+        hex.slice(20, 32);
+      if (!isValidHihahoUuid(uuid)) return null;
+      uuids.push(uuid);
+    }
+    return uuids;
+  }
+
+  async function exportHistoryAsQr() {
+    const history = loadHistory();
+    if (history.length === 0) {
+      alert(t('qr.exportEmpty'));
+      return;
+    }
+    if (history.length > QR_EXPORT_MAX_ITEMS) {
+      alert(
+        t('qr.tooManyItems').replace('{max}', String(QR_EXPORT_MAX_ITEMS))
+      );
+      return;
+    }
+    if (typeof QRCode === 'undefined') {
+      alert(t('qr.exportFailed'));
+      return;
+    }
+
+    const payload = buildQrPayload(history);
+    const canvas = document.getElementById('qr-export-canvas');
+    const countEl = document.getElementById('qr-export-count');
+    if (!canvas) return;
+
+    try {
+      // 画面表示用なので誤り訂正は L (容量を最大化)。alphanumeric モードに
+      // 自動判定させるため uppercase hex のみで構成している。
+      await QRCode.toCanvas(canvas, payload, {
+        errorCorrectionLevel: 'L',
+        margin: 2,
+        scale: 6,
+        color: { dark: '#000000', light: '#ffffff' },
+      });
+    } catch (err) {
+      console.error('qr generation failed', err);
+      alert(t('qr.exportFailed'));
+      return;
+    }
+
+    if (countEl) {
+      countEl.textContent = t('qr.exportItemCount').replace(
+        '{n}',
+        String(history.length)
+      );
+    }
+
+    const modal = document.getElementById('qr-export-modal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  function closeQrExportModal() {
+    const modal = document.getElementById('qr-export-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  // QR から取り込んだ UUID 配列を履歴にマージ (重複は skip、ゴミ箱からは復活)
+  function importUuidsAsHistory(uuids) {
+    const existing = loadHistory();
+    const existingUuids = new Set(existing.map((h) => h.uuid));
+    const trash = loadTrash();
+    const trashMap = new Map(trash.map((tr) => [tr.uuid, tr]));
+    const merged = existing.slice();
+    let added = 0;
+    let skipped = 0;
+    let restored = 0;
+    const restoredUuids = new Set();
+    const now = Date.now();
+
+    for (const uuid of uuids) {
+      if (!isValidHihahoUuid(uuid)) {
+        skipped++;
+        continue;
+      }
+      if (existingUuids.has(uuid)) {
+        skipped++;
+        continue;
+      }
+      if (trashMap.has(uuid)) {
+        const tr = trashMap.get(uuid);
+        restoredUuids.add(uuid);
+        // 元の addedAt / title / playCount を引き継ぐ
+        merged.push({
+          uuid: tr.uuid,
+          version: tr.version || null,
+          title: tr.title || null,
+          addedAt: tr.addedAt || now,
+          metaTriedAt: tr.metaTriedAt || null,
+          playCount: tr.playCount || 0,
+          lastPlayedAt: tr.lastPlayedAt || null,
+        });
+        restored++;
+      } else {
+        merged.push({
+          uuid,
+          version: null,
+          title: null,
+          addedAt: now,
+          metaTriedAt: null,
+          playCount: 0,
+          lastPlayedAt: null,
+        });
+      }
+      existingUuids.add(uuid);
+      added++;
+    }
+
+    if (restoredUuids.size > 0) {
+      saveTrash(trash.filter((tr) => !restoredUuids.has(tr.uuid)));
+    }
+    merged.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+    saveHistory(merged);
+    return { added, skipped, restored };
   }
 
   async function importHistoryFromFile(file) {
@@ -1482,6 +1661,24 @@
 
   async function onScanSuccess(decodedText) {
     if (scanLocked) return;
+
+    // 先に QR インポート ペイロードを判定 (QRVHIST1: で始まる)
+    const importUuids = parseQrImportPayload(decodedText);
+    if (importUuids) {
+      scanLocked = true;
+      clearScanError();
+      await stopScanner();
+      const result = importUuidsAsHistory(importUuids);
+      showScreen('home-screen');
+      renderHistory();
+      refreshTrashUi();
+      backfillMissingMetadata();
+      showToast(
+        t('qr.imported').replace('{n}', String(result.added))
+      );
+      return;
+    }
+
     const parsed = parseHihahoUrl(decodedText);
     if (!parsed) {
       // hihaho の URL ではない → スキャンを継続
@@ -2020,6 +2217,30 @@
         closeMenu();
       });
     }
+
+    // QRコード共有
+    const qrExportBtn = document.getElementById('menu-qr-export');
+    if (qrExportBtn) {
+      qrExportBtn.addEventListener('click', async () => {
+        await exportHistoryAsQr();
+        // メニューはモーダル裏で閉じる
+        closeMenu();
+      });
+    }
+    const qrModal = document.getElementById('qr-export-modal');
+    const qrCloseBtn = document.getElementById('qr-export-close');
+    const qrBackdrop = qrModal && qrModal.querySelector('.qr-modal-backdrop');
+    if (qrCloseBtn) qrCloseBtn.addEventListener('click', closeQrExportModal);
+    if (qrBackdrop) qrBackdrop.addEventListener('click', closeQrExportModal);
+    document.addEventListener('keydown', (e) => {
+      if (
+        e.key === 'Escape' &&
+        qrModal &&
+        !qrModal.classList.contains('hidden')
+      ) {
+        closeQrExportModal();
+      }
+    });
 
     const trashViewBtn = document.getElementById('menu-trash-view');
     if (trashViewBtn) {

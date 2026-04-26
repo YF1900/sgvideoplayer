@@ -204,6 +204,92 @@ button {
   font-family: inherit;
 }
 
+/* ----- QRコード表示モーダル (履歴の一括共有用) ----- */
+.qr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.qr-modal.hidden {
+  display: none !important;
+}
+
+.qr-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.qr-modal-panel {
+  position: relative;
+  background: var(--bg-elev);
+  border-radius: 18px;
+  padding: 22px;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: qrModalIn 0.2s ease-out;
+}
+
+@keyframes qrModalIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.qr-modal-panel h3 {
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.qr-modal-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.qr-modal-canvas {
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px;
+  box-sizing: content-box;
+}
+
+.qr-modal-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.qr-modal-close {
+  width: 100%;
+  background: var(--bg-elev-2);
+  border: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 4px;
+}
+
+.qr-modal-close:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* ----- トースト ----- */
 .toast {
   position: fixed;

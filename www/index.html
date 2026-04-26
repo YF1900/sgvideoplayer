@@ -209,6 +209,20 @@
     </div>
   </div>
 
+  <!-- QRコード表示モーダル (履歴を別端末に渡すため) -->
+  <div id="qr-export-modal" class="qr-modal hidden" aria-hidden="true">
+    <div class="qr-modal-backdrop"></div>
+    <div class="qr-modal-panel" role="dialog" aria-modal="true" aria-labelledby="qr-export-title">
+      <h3 id="qr-export-title" data-i18n="qr.exportTitle">QRコードで履歴を共有</h3>
+      <p class="qr-modal-hint" data-i18n="qr.exportHint">
+        もう一台のアプリで QR スキャンすると履歴が取り込まれます。
+      </p>
+      <canvas id="qr-export-canvas" class="qr-modal-canvas" aria-label="QR code"></canvas>
+      <p id="qr-export-count" class="qr-modal-count"></p>
+      <button id="qr-export-close" type="button" class="qr-modal-close" data-i18n="qr.close">閉じる</button>
+    </div>
+  </div>
+
   <!-- トースト (URL コピー完了通知など) -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
@@ -301,6 +315,10 @@
             <span data-i18n="data.import">履歴を取り込む</span>
             <span class="material-symbols-outlined" aria-hidden="true">file_upload</span>
           </button>
+          <button id="menu-qr-export" class="menu-option-btn menu-action-btn" type="button">
+            <span data-i18n="data.qrExport">QRコードで共有</span>
+            <span class="material-symbols-outlined" aria-hidden="true">qr_code_2</span>
+          </button>
         </div>
         <input
           id="menu-import-file"
@@ -331,6 +349,7 @@
 
   <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
