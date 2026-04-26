@@ -550,30 +550,10 @@ button {
   min-height: 320px;
 }
 
-/* html5-qrcode はピクセル単位の inline サイズを内側 div に書き込む。
-   絶対配置で qr-reader 全体に張り付けることで、ライブラリ側の採寸結果に
-   関わらず常にコンテナ全体を覆わせる。 */
-.qr-reader > div {
-  position: absolute !important;
-  inset: 0 !important;
-  width: auto !important;
-  height: auto !important;
-  max-width: none !important;
-  max-height: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  background: #000 !important;
-}
-
 .qr-reader video {
-  position: absolute !important;
-  inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
-  object-fit: cover !important;
+  object-fit: cover;
 }
 
 /* このアプリで使用しないライブラリ標準 UI を非表示 */
