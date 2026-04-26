@@ -740,9 +740,18 @@
 
     const frag = document.createDocumentFragment();
     for (const item of history) {
-      const li = document.createElement('li');
-      li.className = 'history-item';
-      li.dataset.uuid = item.uuid;
+      // 行ラッパー (li) → 赤い削除背景 + 中身 (中身だけ translateX で動く)
+      const row = document.createElement('li');
+      row.className = 'history-row';
+      row.dataset.uuid = item.uuid;
+
+      const bg = document.createElement('div');
+      bg.className = 'history-row-bg';
+      bg.setAttribute('aria-hidden', 'true');
+      bg.appendChild(makeIcon('delete'));
+
+      const itemEl = document.createElement('div');
+      itemEl.className = 'history-item';
 
       const thumb = document.createElement('div');
       thumb.className = 'history-thumb';
@@ -787,6 +796,7 @@
       info.appendChild(titleEl);
       info.appendChild(meta);
 
+      // ゴミ箱アイコンは廃止。再生ボタンのみ表示。
       const actions = document.createElement('div');
       actions.className = 'history-actions';
 
@@ -796,18 +806,14 @@
       playBtn.setAttribute('aria-label', t('aria.playItem'));
       playBtn.appendChild(makeIcon('play_arrow'));
 
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.className = 'icon-btn danger';
-      delBtn.setAttribute('aria-label', t('aria.delete'));
-      delBtn.appendChild(makeIcon('delete'));
-
       actions.appendChild(playBtn);
-      actions.appendChild(delBtn);
 
-      li.appendChild(thumb);
-      li.appendChild(info);
-      li.appendChild(actions);
+      itemEl.appendChild(thumb);
+      itemEl.appendChild(info);
+      itemEl.appendChild(actions);
+
+      row.appendChild(bg);
+      row.appendChild(itemEl);
 
       const onPlay = () => playVideo(item);
       info.addEventListener('click', onPlay);
@@ -819,17 +825,136 @@
       });
       thumb.addEventListener('click', onPlay);
       playBtn.addEventListener('click', onPlay);
-      delBtn.addEventListener('click', () => {
-        if (confirm(t('app.confirmDeleteOne'))) {
+
+      attachRowSwipeToDelete(row, itemEl, item);
+
+      frag.appendChild(row);
+    }
+    list.appendChild(frag);
+  }
+
+  // ----- 右スワイプで削除 (Mail 風 swipe to delete) -----
+  // history-list の各行に取り付けるポインタハンドラ。
+  // 横方向の大きなスワイプ (右方向、行幅の 60% 以上) で moveToTrash。
+  // 縦方向のスクロールや長押しドラッグ (Sortable) との競合は touch-action と
+  // 方向ロックで吸収する。
+  const SWIPE_AXIS_THRESHOLD = 6;
+  const SWIPE_COMMIT_RATIO = 0.6;
+  const SWIPE_COMMIT_MIN_PX = 140;
+
+  function attachRowSwipeToDelete(rowEl, itemEl, item) {
+    let startX = 0;
+    let startY = 0;
+    let pointerId = null;
+    let active = false;
+    let swiping = false;
+    let suppressNextClick = false;
+
+    const handleDown = (e) => {
+      if (!e.isPrimary) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      // 再生ボタン等の上では起動しない
+      if (e.target.closest('button, .icon-btn')) return;
+      startX = e.clientX;
+      startY = e.clientY;
+      pointerId = e.pointerId;
+      active = true;
+      swiping = false;
+    };
+
+    const handleMove = (e) => {
+      if (!active || pointerId !== e.pointerId) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      if (!swiping) {
+        // 方向ロック
+        if (
+          Math.abs(dx) > SWIPE_AXIS_THRESHOLD &&
+          Math.abs(dx) > Math.abs(dy) * 1.3
+        ) {
+          if (dx <= 0) {
+            // 左方向は無視 (削除は右方向のみ)
+            active = false;
+            return;
+          }
+          swiping = true;
+          rowEl.classList.add('swiping');
+          suppressNextClick = true;
+          try { rowEl.setPointerCapture(e.pointerId); } catch {}
+        } else if (Math.abs(dy) > SWIPE_AXIS_THRESHOLD) {
+          // 縦方向 → スクロール / Sortable に明け渡す
+          active = false;
+          return;
+        }
+      }
+
+      if (swiping) {
+        e.preventDefault();
+        const visibleDx = Math.max(0, dx);
+        itemEl.style.transform = `translateX(${visibleDx}px)`;
+      }
+    };
+
+    const finishSwipe = (commit) => {
+      rowEl.classList.remove('swiping');
+      if (commit) {
+        const offset = rowEl.offsetWidth + 60;
+        itemEl.style.transition = 'transform 0.22s ease, opacity 0.22s ease';
+        itemEl.style.transform = `translateX(${offset}px)`;
+        itemEl.style.opacity = '0';
+        setTimeout(() => {
           removeFromHistory(item.uuid);
           renderHistory();
           refreshTrashUi();
-        }
-      });
+        }, 220);
+      } else {
+        itemEl.style.transition = 'transform 0.18s ease';
+        itemEl.style.transform = '';
+        setTimeout(() => {
+          itemEl.style.transition = '';
+        }, 200);
+      }
+      swiping = false;
+    };
 
-      frag.appendChild(li);
-    }
-    list.appendChild(frag);
+    const handleUp = (e) => {
+      if (!active || (pointerId !== null && pointerId !== e.pointerId)) return;
+      active = false;
+      pointerId = null;
+      if (!swiping) return;
+      const dx = e.clientX - startX;
+      const threshold = Math.max(
+        SWIPE_COMMIT_MIN_PX,
+        rowEl.offsetWidth * SWIPE_COMMIT_RATIO
+      );
+      finishSwipe(dx >= threshold);
+    };
+
+    const handleCancel = (e) => {
+      if (!active || (pointerId !== null && pointerId !== e.pointerId)) return;
+      active = false;
+      pointerId = null;
+      if (swiping) finishSwipe(false);
+    };
+
+    rowEl.addEventListener('pointerdown', handleDown);
+    rowEl.addEventListener('pointermove', handleMove);
+    rowEl.addEventListener('pointerup', handleUp);
+    rowEl.addEventListener('pointercancel', handleCancel);
+
+    // スワイプ後に発生する click を抑制 (capture phase で他リスナーより先に止める)
+    rowEl.addEventListener(
+      'click',
+      (e) => {
+        if (suppressNextClick) {
+          suppressNextClick = false;
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      },
+      true
+    );
   }
 
   // ----- ゴミ箱画面の描画 -----
@@ -1642,11 +1767,14 @@
       // PC は遅延なしで通常のドラッグ。
       delay: 500,
       delayOnTouchOnly: true,
+      // 待機中に 5px 以上動いたら遅延ドラッグをキャンセル → 横スワイプ削除と
+      // 縦スクロールが Sortable に奪われないようにする。
+      touchStartThreshold: 5,
       animation: 180,
       ghostClass: 'sortable-ghost',
       chosenClass: 'sortable-chosen',
-      // 再生/削除ボタンを長押ししてもドラッグは開始しない
-      filter: '.history-actions, .history-actions *',
+      // 再生ボタンと削除背景レイヤーを長押ししてもドラッグは開始しない
+      filter: '.history-actions, .history-actions *, .history-row-bg, .history-row-bg *',
       preventOnFilter: false,
       onEnd: () => {
         saveCustomOrder();

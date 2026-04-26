@@ -486,32 +486,65 @@ button {
   gap: 8px;
 }
 
+/* 履歴 1 行のラッパー。中身を translateX させて削除背景を露出させる
+   "swipe to delete" を実現するための 3 層構造。
+   .history-row (li) → .history-row-bg (赤) + .history-item (実体)。 */
+.history-row {
+  list-style: none;
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  /* スワイプとブラウザのスクロールを共存させる */
+  touch-action: pan-y;
+}
+
+.history-row-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--danger-bg);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 24px;
+  color: var(--danger-fg);
+  font-size: 26px;
+  z-index: 0;
+  pointer-events: none;
+}
+
 .history-item {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
   background: var(--bg-elev);
   border-radius: 12px;
   padding: 12px;
-  transition: background 0.15s ease;
-  /* タップで意図せずテキスト選択が走らないようにする (長押しドラッグ前の選択防止) */
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
+  transition: background 0.15s ease, transform 0.18s ease, opacity 0.18s ease;
+  will-change: transform;
 }
 
 .history-item:active {
   background: var(--bg-elev-2);
 }
 
-/* Sortable.js のドラッグ中の状態 */
-.history-item.sortable-chosen {
+/* スワイプ中は指追従にしたいのでトランジション無効化 */
+.history-row.swiping .history-item {
+  transition: none;
+}
+
+/* Sortable.js のドラッグ中の状態 (Sortable は li = .history-row にクラスを付与) */
+.history-row.sortable-chosen .history-item {
   background: var(--bg-elev-2);
   cursor: grabbing;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
 }
 
-.history-item.sortable-ghost {
+.history-row.sortable-ghost {
   opacity: 0.35;
 }
 
