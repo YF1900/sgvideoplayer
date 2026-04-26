@@ -543,9 +543,11 @@
           const size = Math.floor(min * 0.7);
           return { width: size, height: size };
         },
-        // aspectRatio は意図的に指定しない。1.0 を渡すと一部環境で
-        // ビデオ領域が縦方向に縮められ、コンテナの下半分が黒く残ったまま
-        // になる現象が発生するため。スキャン枠は qrbox で担保している。
+        // aspectRatio: 1.0 は html5-qrcode に内側ラッパーを 1:1 (= 親要素の
+        // 短辺) で構成させ、コンテナ全体を覆わせるためのトリック。
+        // 外すとライブラリが撮影解像度のアスペクト (典型的に 16:9) で
+        // ラッパーを作るため、portrait の qr-reader だと下半分が黒く残る。
+        aspectRatio: 1.0,
       };
 
       try {
