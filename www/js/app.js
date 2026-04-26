@@ -3,6 +3,158 @@
 
   const STORAGE_KEY = 'hihaho-qr-history-v1';
   const THUMBS_KEY = 'hihaho-qr-thumbs-v1';
+  const LANG_KEY = 'hihaho-qr-lang';
+
+  // ----- 国際化 -----
+  const I18N = {
+    ja: {
+      'app.title': 'hihaho QR プレーヤー',
+      'app.scan': 'QRコードをスキャン',
+      'app.manualInput': 'URLを直接入力',
+      'app.urlPlaceholder': 'https://player.hihaho.com/...',
+      'app.play': '再生',
+      'app.history': '視聴履歴',
+      'app.clearAll': 'すべて削除',
+      'app.emptyHistory':
+        'まだ視聴履歴はありません。<br />「QRコードをスキャン」から始めましょう。',
+      'app.noResults': '該当する動画がありません。',
+      'app.untitled': '(タイトル未取得)',
+      'app.invalidUrl': 'hihaho の有効な URL を入力してください。',
+      'app.confirmDeleteOne': 'この動画を履歴から削除しますか?',
+      'app.confirmDeleteAll': 'すべての履歴を削除しますか?',
+      'app.searchPlaceholder': 'タイトル・UUIDで検索',
+      'menu.menu': 'メニュー',
+      'menu.language': '言語',
+      'menu.langJa': '日本語',
+      'menu.langEn': 'English',
+      'install.heading': 'アプリとして使う',
+      'install.ios':
+        'Safari の「共有」ボタンから「ホーム画面に追加」を選ぶと、URLバーなしの全画面アプリとして使えます。',
+      'install.android':
+        'Chrome のメニューから「アプリをインストール」または「ホーム画面に追加」を選ぶと、独立したアプリとして起動できます。',
+      'install.generic':
+        'ホーム画面に追加するとアプリのように起動できます。',
+      'install.install': 'インストール',
+      'aria.fullscreen': '全画面表示',
+      'aria.update': 'アプリを更新',
+      'aria.close': '閉じる',
+      'aria.searchClear': '検索をクリア',
+      'aria.menu': 'メニュー',
+      'aria.delete': '削除',
+      'aria.playItem': '再生',
+      'scan.title': 'QRコードをスキャン',
+      'scan.hint': 'hihaho の QRコードをカメラに向けてください',
+      'scan.libError':
+        'QRスキャナの読み込みに失敗しました。ネットワーク接続を確認してください。',
+      'scan.unsupported': 'このブラウザはカメラの取得に対応していません。',
+      'scan.cameraError':
+        'カメラを起動できませんでした。ブラウザの設定でカメラの使用を許可してください。',
+      'scan.notHihaho': 'hihaho の URL ではありません。別のQRコードをお試しください。',
+      'player.loading': '動画を読み込み中…',
+      'player.errorTitle': '動画を表示できませんでした',
+      'player.errorBody':
+        'hihaho の動画設定で、このアプリのドメインが「埋め込み許可ドメイン」に追加されているかご確認ください。',
+      'player.openInBrowser': 'ブラウザで開く',
+    },
+    en: {
+      'app.title': 'hihaho QR Player',
+      'app.scan': 'Scan QR Code',
+      'app.manualInput': 'Enter URL directly',
+      'app.urlPlaceholder': 'https://player.hihaho.com/...',
+      'app.play': 'Play',
+      'app.history': 'History',
+      'app.clearAll': 'Clear all',
+      'app.emptyHistory':
+        'No history yet.<br />Tap "Scan QR Code" to start.',
+      'app.noResults': 'No matching videos.',
+      'app.untitled': '(Title unavailable)',
+      'app.invalidUrl': 'Please enter a valid hihaho URL.',
+      'app.confirmDeleteOne': 'Remove this video from history?',
+      'app.confirmDeleteAll': 'Remove all history?',
+      'app.searchPlaceholder': 'Search title or UUID',
+      'menu.menu': 'Menu',
+      'menu.language': 'Language',
+      'menu.langJa': '日本語',
+      'menu.langEn': 'English',
+      'install.heading': 'Install as app',
+      'install.ios':
+        'Use Safari\'s Share button > "Add to Home Screen" to install this site as a fullscreen app.',
+      'install.android':
+        'Use Chrome\'s menu > "Install app" or "Add to Home Screen" to launch this site as a standalone app.',
+      'install.generic': 'Add to your home screen to launch this site like an app.',
+      'install.install': 'Install',
+      'aria.fullscreen': 'Toggle fullscreen',
+      'aria.update': 'Update app',
+      'aria.close': 'Close',
+      'aria.searchClear': 'Clear search',
+      'aria.menu': 'Menu',
+      'aria.delete': 'Delete',
+      'aria.playItem': 'Play',
+      'scan.title': 'Scan QR Code',
+      'scan.hint': 'Aim the camera at the hihaho QR code',
+      'scan.libError':
+        'Failed to load the QR scanner. Check your network connection.',
+      'scan.unsupported': 'This browser does not support camera access.',
+      'scan.cameraError':
+        'Could not start the camera. Please allow camera access in your browser settings.',
+      'scan.notHihaho': 'Not a hihaho URL. Please try another QR code.',
+      'player.loading': 'Loading video…',
+      'player.errorTitle': 'Could not display the video',
+      'player.errorBody':
+        'Make sure this app\'s domain is added to "Allowed embed domains" in the hihaho video settings.',
+      'player.openInBrowser': 'Open in browser',
+    },
+  };
+
+  function getLang() {
+    const stored = localStorage.getItem(LANG_KEY);
+    if (stored === 'ja' || stored === 'en') return stored;
+    return /^ja\b/i.test(navigator.language || '') ? 'ja' : 'en';
+  }
+
+  function t(key) {
+    const lang = getLang();
+    return (I18N[lang] && I18N[lang][key]) || I18N.ja[key] || key;
+  }
+
+  function applyTranslations() {
+    const lang = getLang();
+    document.documentElement.lang = lang;
+    document.title = t('app.title');
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      el.textContent = t(el.dataset.i18n);
+    });
+    document.querySelectorAll('[data-i18n-html]').forEach((el) => {
+      el.innerHTML = t(el.dataset.i18nHtml);
+    });
+    document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+      el.setAttribute('aria-label', t(el.dataset.i18nAria));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+      el.placeholder = t(el.dataset.i18nPlaceholder);
+    });
+  }
+
+  function setLang(lang) {
+    if (lang !== 'ja' && lang !== 'en') return;
+    localStorage.setItem(LANG_KEY, lang);
+    applyTranslations();
+    // 動的に生成しているコンテンツも再描画
+    renderHistory();
+    refreshInstallBannerHint();
+    refreshLangActive();
+  }
+
+  function getDateFormatter() {
+    const locale = getLang() === 'ja' ? 'ja-JP' : 'en-US';
+    return new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
   const MAX_HISTORY = 200;
   const META_FETCH_TIMEOUT_MS = 8000;
   const THUMB_FETCH_TIMEOUT_MS = 12000;
@@ -316,18 +468,9 @@
   }
 
   // ----- 履歴の描画 -----
-  const dateFormatter = new Intl.DateTimeFormat('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 
   // ----- 検索 -----
   let searchQuery = '';
-  const EMPTY_DEFAULT_HTML =
-    'まだ視聴履歴はありません。<br />「QRコードをスキャン」から始めましょう。';
 
   function getFilteredHistory() {
     const all = loadHistory();
@@ -351,7 +494,7 @@
 
     if (allHistory.length === 0) {
       empty.classList.remove('hidden');
-      empty.innerHTML = EMPTY_DEFAULT_HTML;
+      empty.innerHTML = t('app.emptyHistory');
       clearBtn.classList.add('hidden');
       return;
     }
@@ -359,7 +502,7 @@
 
     if (history.length === 0) {
       empty.classList.remove('hidden');
-      empty.textContent = '該当する動画がありません。';
+      empty.textContent = t('app.noResults');
       return;
     }
     empty.classList.add('hidden');
@@ -393,7 +536,7 @@
       if (item.title) {
         titleEl.textContent = item.title;
       } else {
-        titleEl.textContent = '(タイトル未取得)';
+        titleEl.textContent = t('app.untitled');
         titleEl.classList.add('placeholder');
       }
       titleEl.title = item.uuid;
@@ -401,7 +544,7 @@
       const meta = document.createElement('div');
       meta.className = 'history-meta';
       const dateSpan = document.createElement('span');
-      dateSpan.textContent = dateFormatter.format(new Date(item.addedAt));
+      dateSpan.textContent = getDateFormatter().format(new Date(item.addedAt));
       meta.appendChild(dateSpan);
       if (item.version) {
         const verSpan = document.createElement('span');
@@ -418,13 +561,13 @@
       const playBtn = document.createElement('button');
       playBtn.type = 'button';
       playBtn.className = 'icon-btn';
-      playBtn.setAttribute('aria-label', '再生');
+      playBtn.setAttribute('aria-label', t('aria.playItem'));
       playBtn.appendChild(makeIcon('play_arrow'));
 
       const delBtn = document.createElement('button');
       delBtn.type = 'button';
       delBtn.className = 'icon-btn danger';
-      delBtn.setAttribute('aria-label', '削除');
+      delBtn.setAttribute('aria-label', t('aria.delete'));
       delBtn.appendChild(makeIcon('delete'));
 
       actions.appendChild(playBtn);
@@ -445,7 +588,7 @@
       thumb.addEventListener('click', onPlay);
       playBtn.addEventListener('click', onPlay);
       delBtn.addEventListener('click', () => {
-        if (confirm('この動画を履歴から削除しますか?')) {
+        if (confirm(t('app.confirmDeleteOne'))) {
           removeFromHistory(item.uuid);
           renderHistory();
         }
@@ -496,15 +639,11 @@
       scanLocked = false;
 
       if (typeof jsQR === 'undefined') {
-        showScanError(
-          'QRスキャナの読み込みに失敗しました。ネットワーク接続を確認してください。'
-        );
+        showScanError(t('scan.libError'));
         return;
       }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showScanError(
-          'このブラウザはカメラの取得に対応していません。'
-        );
+        showScanError(t('scan.unsupported'));
         return;
       }
 
@@ -523,9 +662,7 @@
         });
       } catch (err) {
         console.error('getUserMedia failed', err);
-        showScanError(
-          'カメラを起動できませんでした。ブラウザの設定でカメラの使用を許可してください。'
-        );
+        showScanError(t('scan.cameraError'));
         return;
       }
 
@@ -603,7 +740,7 @@
     const parsed = parseHihahoUrl(decodedText);
     if (!parsed) {
       // hihaho の URL ではない → スキャンを継続
-      showScanError('hihaho の URL ではありません。別のQRコードをお試しください。');
+      showScanError(t('scan.notHihaho'));
       return;
     }
     scanLocked = true;
@@ -819,26 +956,30 @@
   let deferredInstallPrompt = null;
   const INSTALL_DISMISS_KEY = 'hihaho-install-dismissed';
 
+  function refreshInstallBannerHint() {
+    const hint = document.getElementById('install-banner-hint');
+    if (!hint) return;
+    if (isIOS()) {
+      hint.textContent = t('install.ios');
+    } else if (isAndroid()) {
+      hint.textContent = t('install.android');
+    } else {
+      hint.textContent = t('install.generic');
+    }
+  }
+
   function setupInstallBanner() {
     const banner = document.getElementById('install-banner');
     const installBtn = document.getElementById('install-btn');
     const dismissBtn = document.getElementById('install-dismiss');
-    const hint = document.getElementById('install-banner-hint');
 
     // 既にインストール済み or Capacitor ネイティブ実行中はバナー不要
     if (isStandalone() || isCapacitorNative()) return;
     if (localStorage.getItem(INSTALL_DISMISS_KEY) === '1') return;
 
-    if (isIOS()) {
-      hint.textContent =
-        'Safari の「共有」ボタンから「ホーム画面に追加」を選ぶと、URLバーなしの全画面アプリとして使えます。';
+    refreshInstallBannerHint();
+    if (isIOS() || isAndroid()) {
       banner.classList.remove('hidden');
-    } else if (isAndroid()) {
-      hint.textContent =
-        'Chrome のメニューから「アプリをインストール」または「ホーム画面に追加」を選ぶと、独立したアプリとして起動できます。';
-      banner.classList.remove('hidden');
-    } else {
-      hint.textContent = 'ホーム画面に追加するとアプリのように起動できます。';
     }
 
     installBtn.addEventListener('click', async () => {
@@ -876,7 +1017,52 @@
   }
 
   // ----- イベント登録 -----
+  // ----- メニュー (ドロワー) -----
+  function refreshLangActive() {
+    const current = getLang();
+    document.querySelectorAll('.menu-lang-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.lang === current);
+    });
+  }
+
+  function setupMenu() {
+    const menuBtn = document.getElementById('menu-btn');
+    const overlay = document.getElementById('menu-overlay');
+    const closeBtn = document.getElementById('menu-close');
+    if (!menuBtn || !overlay || !closeBtn) return;
+
+    function openMenu() {
+      overlay.classList.remove('hidden');
+      overlay.setAttribute('aria-hidden', 'false');
+      refreshLangActive();
+    }
+    function closeMenu() {
+      overlay.classList.add('hidden');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    menuBtn.addEventListener('click', openMenu);
+    closeBtn.addEventListener('click', closeMenu);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeMenu();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
+        closeMenu();
+      }
+    });
+
+    document.querySelectorAll('.menu-lang-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const lang = btn.dataset.lang;
+        if (lang) setLang(lang);
+      });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
+    applyTranslations();
+    setupMenu();
     renderHistory();
     setupInstallBanner();
     setupFullscreenToggle();
@@ -902,7 +1088,7 @@
       const input = document.getElementById('manual-url');
       const parsed = parseHihahoUrl(input.value);
       if (!parsed) {
-        alert('hihaho の有効な URL を入力してください。');
+        alert(t('app.invalidUrl'));
         return;
       }
       // フォーム submit はユーザー操作なので全画面化を試みる
@@ -914,7 +1100,7 @@
     });
 
     document.getElementById('clear-all-btn').addEventListener('click', () => {
-      if (confirm('すべての履歴を削除しますか?')) {
+      if (confirm(t('app.confirmDeleteAll'))) {
         clearHistory();
         renderHistory();
       }

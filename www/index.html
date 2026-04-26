@@ -23,23 +23,26 @@
   <!-- ホーム画面 -->
   <section id="home-screen" class="screen active">
     <header class="app-header">
-      <h1>hihaho QR プレーヤー</h1>
-      <button id="update-btn" class="header-icon-btn" type="button" aria-label="アプリを更新">
+      <button id="menu-btn" class="header-icon-btn" type="button" aria-label="メニュー" data-i18n-aria="aria.menu">
+        <span class="material-symbols-outlined" aria-hidden="true">menu</span>
+      </button>
+      <h1 data-i18n="app.title">hihaho QR プレーヤー</h1>
+      <button id="update-btn" class="header-icon-btn" type="button" aria-label="アプリを更新" data-i18n-aria="aria.update">
         <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
       </button>
-      <button id="fullscreen-toggle" class="header-icon-btn hidden" type="button" aria-label="全画面表示">
+      <button id="fullscreen-toggle" class="header-icon-btn hidden" type="button" aria-label="全画面表示" data-i18n-aria="aria.fullscreen">
         <span class="material-symbols-outlined" aria-hidden="true">fullscreen</span>
       </button>
     </header>
     <main class="home-main">
       <div id="install-banner" class="install-banner hidden">
         <div class="install-banner-text">
-          <strong>アプリとして使う</strong>
+          <strong data-i18n="install.heading">アプリとして使う</strong>
           <span id="install-banner-hint"></span>
         </div>
         <div class="install-banner-actions">
-          <button id="install-btn" class="secondary-btn hidden" type="button">インストール</button>
-          <button id="install-dismiss" class="text-btn" type="button" aria-label="閉じる">
+          <button id="install-btn" class="secondary-btn hidden" type="button" data-i18n="install.install">インストール</button>
+          <button id="install-dismiss" class="text-btn" type="button" aria-label="閉じる" data-i18n-aria="aria.close">
             <span class="material-symbols-outlined" aria-hidden="true">close</span>
           </button>
         </div>
@@ -47,11 +50,11 @@
 
       <button id="scan-btn" class="primary-btn" type="button">
         <span class="material-symbols-outlined btn-icon" aria-hidden="true">qr_code_scanner</span>
-        <span>QRコードをスキャン</span>
+        <span data-i18n="app.scan">QRコードをスキャン</span>
       </button>
 
       <details class="manual-input">
-        <summary>URLを直接入力</summary>
+        <summary data-i18n="app.manualInput">URLを直接入力</summary>
         <form id="manual-form" class="manual-form">
           <input
             id="manual-url"
@@ -59,19 +62,20 @@
             inputmode="url"
             autocomplete="off"
             placeholder="https://player.hihaho.com/..."
+            data-i18n-placeholder="app.urlPlaceholder"
             required
           />
-          <button type="submit" class="secondary-btn">再生</button>
+          <button type="submit" class="secondary-btn" data-i18n="app.play">再生</button>
         </form>
       </details>
 
       <section class="history-section">
         <div class="history-header">
-          <h2>視聴履歴</h2>
-          <button id="clear-all-btn" class="text-btn hidden" type="button">すべて削除</button>
+          <h2 data-i18n="app.history">視聴履歴</h2>
+          <button id="clear-all-btn" class="text-btn hidden" type="button" data-i18n="app.clearAll">すべて削除</button>
         </div>
         <ul id="history-list" class="history-list"></ul>
-        <p id="empty-message" class="empty-message hidden">
+        <p id="empty-message" class="empty-message hidden" data-i18n-html="app.emptyHistory">
           まだ視聴履歴はありません。<br />「QRコードをスキャン」から始めましょう。
         </p>
       </section>
@@ -83,6 +87,7 @@
           id="search-input"
           type="search"
           placeholder="タイトル・UUIDで検索"
+          data-i18n-placeholder="app.searchPlaceholder"
           enterkeyhint="search"
         />
         <button
@@ -90,6 +95,7 @@
           id="search-clear"
           class="search-clear hidden"
           aria-label="検索をクリア"
+          data-i18n-aria="aria.searchClear"
         >
           <span class="material-symbols-outlined" aria-hidden="true">close</span>
         </button>
@@ -100,10 +106,10 @@
   <!-- スキャン画面 -->
   <section id="scan-screen" class="screen">
     <header class="app-header dark">
-      <button id="scan-cancel" class="back-btn" type="button" aria-label="閉じる">
+      <button id="scan-cancel" class="back-btn" type="button" aria-label="閉じる" data-i18n-aria="aria.close">
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
-      <h2>QRコードをスキャン</h2>
+      <h2 data-i18n="scan.title">QRコードをスキャン</h2>
     </header>
     <div id="qr-reader" class="qr-reader">
       <video id="qr-video" playsinline muted autoplay></video>
@@ -111,27 +117,27 @@
         <div class="qr-frame"></div>
       </div>
     </div>
-    <p class="scan-hint">hihaho の QRコードをカメラに向けてください</p>
+    <p class="scan-hint" data-i18n="scan.hint">hihaho の QRコードをカメラに向けてください</p>
     <p id="scan-error" class="scan-error hidden"></p>
   </section>
 
   <!-- プレーヤー画面 -->
   <section id="player-screen" class="screen player">
-    <button id="player-back" class="back-btn floating" type="button" aria-label="閉じる">
+    <button id="player-back" class="back-btn floating" type="button" aria-label="閉じる" data-i18n-aria="aria.close">
       <span class="material-symbols-outlined" aria-hidden="true">close</span>
     </button>
     <div id="player-loading" class="player-loading">
       <div class="spinner" aria-hidden="true"></div>
-      <p>動画を読み込み中…</p>
+      <p data-i18n="player.loading">動画を読み込み中…</p>
     </div>
     <div id="player-error" class="player-error hidden">
       <div class="player-error-card">
-        <h3>動画を表示できませんでした</h3>
-        <p>
+        <h3 data-i18n="player.errorTitle">動画を表示できませんでした</h3>
+        <p data-i18n="player.errorBody">
           hihaho の動画設定で、このアプリのドメインが「埋め込み許可ドメイン」に追加されているかご確認ください。
         </p>
         <p class="player-error-url" id="player-error-url"></p>
-        <button id="player-error-open" class="secondary-btn" type="button">ブラウザで開く</button>
+        <button id="player-error-open" class="secondary-btn" type="button" data-i18n="player.openInBrowser">ブラウザで開く</button>
       </div>
     </div>
     <div id="player-container" class="player-container">
@@ -145,6 +151,31 @@
       ></iframe>
     </div>
   </section>
+
+  <!-- メニュー (左からスライド) -->
+  <div id="menu-overlay" class="menu-overlay hidden" aria-hidden="true">
+    <aside class="menu-panel" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+      <header class="menu-header">
+        <h2 id="menu-title" data-i18n="menu.menu">メニュー</h2>
+        <button id="menu-close" class="header-icon-btn" type="button" aria-label="閉じる" data-i18n-aria="aria.close">
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      </header>
+      <section class="menu-section">
+        <h3 data-i18n="menu.language">言語</h3>
+        <div class="menu-lang-buttons">
+          <button class="menu-lang-btn" type="button" data-lang="ja">
+            <span data-i18n="menu.langJa">日本語</span>
+            <span class="material-symbols-outlined menu-lang-check" aria-hidden="true">check</span>
+          </button>
+          <button class="menu-lang-btn" type="button" data-lang="en">
+            <span data-i18n="menu.langEn">English</span>
+            <span class="material-symbols-outlined menu-lang-check" aria-hidden="true">check</span>
+          </button>
+        </div>
+      </section>
+    </aside>
+  </div>
 
   <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="js/app.js"></script>

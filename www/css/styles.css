@@ -90,6 +90,112 @@ button {
   flex: 1;
 }
 
+/* ----- メニュー (ドロワー) ----- */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 100;
+  display: flex;
+  animation: fadeIn 0.18s ease-out;
+}
+
+.menu-overlay.hidden {
+  display: none !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.menu-panel {
+  width: min(85vw, 320px);
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--safe-top) + 12px) 0 calc(var(--safe-bottom) + 12px);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+  animation: slideInLeft 0.22s ease-out;
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.menu-header h2 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.menu-section {
+  padding: 18px 16px;
+}
+
+.menu-section h3 {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+
+.menu-lang-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-lang-btn {
+  background: var(--bg-elev);
+  border: 1px solid transparent;
+  color: var(--text);
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  font-family: inherit;
+}
+
+.menu-lang-btn:active {
+  background: var(--bg-elev-2);
+}
+
+.menu-lang-btn .menu-lang-check {
+  font-size: 18px;
+  color: var(--accent);
+  visibility: hidden;
+}
+
+.menu-lang-btn.active {
+  border-color: var(--accent);
+  background: var(--bg-elev-2);
+}
+
+.menu-lang-btn.active .menu-lang-check {
+  visibility: visible;
+}
+
 .header-icon-btn {
   background: var(--bg-elev);
   border: none;
