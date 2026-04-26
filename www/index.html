@@ -288,6 +288,29 @@
       </section>
 
       <section class="menu-section">
+        <h3 data-i18n="menu.data">データ</h3>
+        <p class="menu-section-hint" data-i18n="data.hint">
+          視聴履歴を JSON ファイルで書き出し / 取り込みできます。
+        </p>
+        <div class="menu-options">
+          <button id="menu-export" class="menu-option-btn menu-action-btn" type="button">
+            <span data-i18n="data.export">履歴を書き出す</span>
+            <span class="material-symbols-outlined" aria-hidden="true">file_download</span>
+          </button>
+          <button id="menu-import" class="menu-option-btn menu-action-btn" type="button">
+            <span data-i18n="data.import">履歴を取り込む</span>
+            <span class="material-symbols-outlined" aria-hidden="true">file_upload</span>
+          </button>
+        </div>
+        <input
+          id="menu-import-file"
+          type="file"
+          accept="application/json,.json"
+          hidden
+        />
+      </section>
+
+      <section class="menu-section">
         <h3 data-i18n="menu.trash">ゴミ箱</h3>
         <p class="menu-section-hint" data-i18n="trash.retentionHint">
           削除した動画は30日間ゴミ箱に保管されます。

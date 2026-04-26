@@ -42,6 +42,16 @@
       'sort.nameAsc': '名前 (A→Z)',
       'sort.nameDesc': '名前 (Z→A)',
       'sort.custom': 'カスタム順 (ドラッグ)',
+      'menu.data': 'データ',
+      'data.hint': '視聴履歴を JSON ファイルで書き出し / 取り込みできます。',
+      'data.export': '履歴を書き出す',
+      'data.import': '履歴を取り込む',
+      'data.exported': '履歴を書き出しました',
+      'data.imported': '{added}件を追加、{skipped}件をスキップしました',
+      'data.importEmpty': '取り込めるデータがありません。',
+      'data.importError': 'ファイルを読み込めませんでした。',
+      'data.importParseError': 'JSON の解析に失敗しました。',
+      'data.importInvalid': '対応していない形式のファイルです。',
       'menu.closeButtonPos': '動画を閉じるボタンの位置',
       'pos.topLeft': '左上',
       'pos.topRight': '右上',
@@ -125,6 +135,16 @@
       'sort.nameAsc': 'Name (A→Z)',
       'sort.nameDesc': 'Name (Z→A)',
       'sort.custom': 'Custom (drag)',
+      'menu.data': 'Data',
+      'data.hint': 'Export or import the history as a JSON file.',
+      'data.export': 'Export history',
+      'data.import': 'Import history',
+      'data.exported': 'History exported',
+      'data.imported': 'Added {added}, skipped {skipped}',
+      'data.importEmpty': 'No items to import.',
+      'data.importError': 'Failed to read the file.',
+      'data.importParseError': 'Failed to parse JSON.',
+      'data.importInvalid': 'Unsupported file format.',
       'menu.closeButtonPos': 'Close button position',
       'pos.topLeft': 'Top left',
       'pos.topRight': 'Top right',
@@ -513,6 +533,172 @@
     const trash = loadTrash();
     trash.forEach((t) => removeThumb(t.uuid));
     saveTrash([]);
+  }
+
+  // ----- 履歴のエクスポート / インポート (JSON ファイル一括) -----
+  const EXPORT_SCHEMA = 'qr-video-history-v1';
+
+  function isValidHihahoUuid(s) {
+    return (
+      typeof s === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
+    );
+  }
+
+  function buildExportPayload() {
+    const history = loadHistory();
+    return {
+      schema: EXPORT_SCHEMA,
+      exportedAt: new Date().toISOString(),
+      items: history.map((h) => ({
+        uuid: h.uuid,
+        version: h.version || null,
+        title: h.title || null,
+        addedAt: h.addedAt,
+        playCount: h.playCount || 0,
+        lastPlayedAt: h.lastPlayedAt || null,
+      })),
+    };
+  }
+
+  async function exportHistory() {
+    const payload = buildExportPayload();
+    const json = JSON.stringify(payload, null, 2);
+    const today = new Date().toISOString().slice(0, 10);
+    const filename = `qr-video-history-${today}.json`;
+    const blob = new Blob([json], { type: 'application/json' });
+
+    // 1) Web Share API でファイル共有 (iOS / Android の OS 共有シート経由で
+    //    AirDrop / Files / メール / メッセージ / Drive 等に送れる)
+    if (
+      typeof File !== 'undefined' &&
+      typeof navigator.canShare === 'function'
+    ) {
+      try {
+        const file = new File([blob], filename, { type: 'application/json' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: filename });
+          showToast(t('data.exported'));
+          return;
+        }
+      } catch {
+        // ユーザーキャンセル or 非対応 → 下のダウンロードへフォールバック
+      }
+    }
+
+    // 2) <a download> でローカルダウンロード
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    showToast(t('data.exported'));
+  }
+
+  async function importHistoryFromFile(file) {
+    if (!file) return;
+    let text;
+    try {
+      text = await file.text();
+    } catch {
+      alert(t('data.importError'));
+      return;
+    }
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      alert(t('data.importParseError'));
+      return;
+    }
+    if (
+      !data ||
+      typeof data !== 'object' ||
+      data.schema !== EXPORT_SCHEMA ||
+      !Array.isArray(data.items)
+    ) {
+      alert(t('data.importInvalid'));
+      return;
+    }
+    if (data.items.length === 0) {
+      alert(t('data.importEmpty'));
+      return;
+    }
+
+    // 既存履歴とマージ (同 UUID はスキップ)。インポートしたものは
+    // ゴミ箱からも復活させる (削除済み UUID を再取り込みした場合)。
+    const existing = loadHistory();
+    const existingUuids = new Set(existing.map((h) => h.uuid));
+    const trash = loadTrash();
+    const trashUuids = new Set(trash.map((t) => t.uuid));
+    const merged = existing.slice();
+    let added = 0;
+    let skipped = 0;
+    let restoredFromTrash = 0;
+
+    for (const raw of data.items) {
+      if (!raw || !isValidHihahoUuid(raw.uuid)) {
+        skipped++;
+        continue;
+      }
+      if (existingUuids.has(raw.uuid)) {
+        skipped++;
+        continue;
+      }
+      if (trashUuids.has(raw.uuid)) {
+        // ゴミ箱から取り出してインポート扱いに
+        const idx = trash.findIndex((tr) => tr.uuid === raw.uuid);
+        if (idx >= 0) trash.splice(idx, 1);
+        trashUuids.delete(raw.uuid);
+        restoredFromTrash++;
+      }
+      merged.push({
+        uuid: raw.uuid,
+        version:
+          raw.version != null && /^\d+$/.test(String(raw.version))
+            ? String(raw.version)
+            : null,
+        title: typeof raw.title === 'string' ? raw.title : null,
+        addedAt:
+          typeof raw.addedAt === 'number' && raw.addedAt > 0
+            ? raw.addedAt
+            : Date.now(),
+        metaTriedAt: null,
+        playCount:
+          typeof raw.playCount === 'number' && raw.playCount >= 0
+            ? Math.floor(raw.playCount)
+            : 0,
+        lastPlayedAt:
+          typeof raw.lastPlayedAt === 'number' && raw.lastPlayedAt > 0
+            ? raw.lastPlayedAt
+            : null,
+      });
+      existingUuids.add(raw.uuid);
+      added++;
+    }
+
+    // ゴミ箱からの取り出しを反映
+    if (restoredFromTrash > 0) saveTrash(trash);
+
+    // 並び替え (デフォルト = addedAt 降順)
+    merged.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+    saveHistory(merged);
+
+    renderHistory();
+    refreshTrashUi();
+    // タイトル / サムネイルが無いものは後追いで取得
+    backfillMissingMetadata();
+
+    showToast(
+      t('data.imported')
+        .replace('{added}', String(added))
+        .replace('{skipped}', String(skipped))
+    );
   }
 
   // ----- hihaho メタデータ取得 -----
@@ -1810,6 +1996,30 @@
         if (pos) setClosePos(pos);
       });
     });
+
+    // データ書き出し / 取り込み
+    const exportBtn = document.getElementById('menu-export');
+    const importBtn = document.getElementById('menu-import');
+    const importFile = document.getElementById('menu-import-file');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', async () => {
+        await exportHistory();
+        closeMenu();
+      });
+    }
+    if (importBtn && importFile) {
+      importBtn.addEventListener('click', () => {
+        // 同じファイルを連続選択しても change が発火するように value を空に
+        importFile.value = '';
+        importFile.click();
+      });
+      importFile.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        await importHistoryFromFile(file);
+        closeMenu();
+      });
+    }
 
     const trashViewBtn = document.getElementById('menu-trash-view');
     if (trashViewBtn) {

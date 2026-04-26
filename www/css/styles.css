@@ -376,6 +376,12 @@ button {
   display: none;
 }
 
+/* メニューのアクションボタン (エクスポート / インポート 等) */
+.menu-action-btn .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--text-muted);
+}
+
 /* 「ゴミ箱を空にする」など破壊的アクションボタン */
 .menu-action-danger {
   color: var(--danger-fg);
