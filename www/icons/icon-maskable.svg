@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="hihaho QR プレーヤー">
+  <!-- マスカブル用にセーフゾーン (内側 80%) に主要素を収める -->
+  <rect width="512" height="512" fill="#0b0f17"/>
+  <circle cx="256" cy="256" r="120" fill="#ff5e3a"/>
+  <polygon points="220,196 340,256 220,316" fill="#ffffff"/>
+</svg>

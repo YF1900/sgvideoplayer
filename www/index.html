@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0b0f17" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="hihaho QR" />
+  <title>hihaho QR プレーヤー</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- ホーム画面 -->
+  <section id="home-screen" class="screen active">
+    <header class="app-header">
+      <h1>hihaho QR プレーヤー</h1>
+      <button id="fullscreen-toggle" class="header-icon-btn hidden" type="button" aria-label="全画面表示">⛶</button>
+    </header>
+    <main class="home-main">
+      <div id="install-banner" class="install-banner hidden">
+        <div class="install-banner-text">
+          <strong>アプリとして使う</strong>
+          <span id="install-banner-hint"></span>
+        </div>
+        <div class="install-banner-actions">
+          <button id="install-btn" class="secondary-btn hidden" type="button">インストール</button>
+          <button id="install-dismiss" class="text-btn" type="button" aria-label="閉じる">✕</button>
+        </div>
+      </div>
+
+      <button id="scan-btn" class="primary-btn" type="button">
+        <span class="btn-icon" aria-hidden="true">▣</span>
+        <span>QRコードをスキャン</span>
+      </button>
+
+      <details class="manual-input">
+        <summary>URLを直接入力</summary>
+        <form id="manual-form" class="manual-form">
+          <input
+            id="manual-url"
+            type="url"
+            inputmode="url"
+            autocomplete="off"
+            placeholder="https://player.hihaho.com/..."
+            required
+          />
+          <button type="submit" class="secondary-btn">再生</button>
+        </form>
+      </details>
+
+      <section class="history-section">
+        <div class="history-header">
+          <h2>視聴履歴</h2>
+          <button id="clear-all-btn" class="text-btn hidden" type="button">すべて削除</button>
+        </div>
+        <ul id="history-list" class="history-list"></ul>
+        <p id="empty-message" class="empty-message hidden">
+          まだ視聴履歴はありません。<br />「QRコードをスキャン」から始めましょう。
+        </p>
+      </section>
+    </main>
+    <footer class="app-footer">
+      <small>カメラを使用するため HTTPS でのアクセスが必要です。</small>
+    </footer>
+  </section>
+
+  <!-- スキャン画面 -->
+  <section id="scan-screen" class="screen">
+    <header class="app-header dark">
+      <button id="scan-cancel" class="back-btn" type="button" aria-label="閉じる">✕</button>
+      <h2>QRコードをスキャン</h2>
+    </header>
+    <div id="qr-reader" class="qr-reader"></div>
+    <p class="scan-hint">hihaho の QRコードをカメラに向けてください</p>
+    <p id="scan-error" class="scan-error hidden"></p>
+  </section>
+
+  <!-- プレーヤー画面 -->
+  <section id="player-screen" class="screen player">
+    <button id="player-back" class="back-btn floating" type="button" aria-label="閉じる">✕</button>
+    <div id="player-loading" class="player-loading">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>動画を読み込み中…</p>
+    </div>
+    <div id="player-error" class="player-error hidden">
+      <div class="player-error-card">
+        <h3>動画を表示できませんでした</h3>
+        <p>
+          hihaho の動画設定で、このアプリのドメインが「埋め込み許可ドメイン」に追加されているかご確認ください。
+        </p>
+        <p class="player-error-url" id="player-error-url"></p>
+        <button id="player-error-open" class="secondary-btn" type="button">ブラウザで開く</button>
+      </div>
+    </div>
+    <div id="player-container" class="player-container">
+      <iframe
+        id="player-iframe"
+        title="hihaho video"
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; gyroscope"
+        allowfullscreen
+        webkitallowfullscreen
+        mozallowfullscreen
+      ></iframe>
+    </div>
+  </section>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
