@@ -270,14 +270,34 @@
   async function playVideo(item) {
     const url = buildEmbedUrl(item);
     const iframe = document.getElementById('player-iframe');
+    const loading = document.getElementById('player-loading');
+    const error = document.getElementById('player-error');
+    const errorUrl = document.getElementById('player-error-url');
+
+    loading.classList.remove('hidden');
+    error.classList.add('hidden');
+    errorUrl.textContent = url;
+
+    // 一定時間内に load イベントが来なければエラー表示
+    let loaded = false;
+    const onLoad = () => {
+      loaded = true;
+      loading.classList.add('hidden');
+    };
+    iframe.addEventListener('load', onLoad, { once: true });
+
+    setTimeout(() => {
+      if (!loaded) {
+        loading.classList.add('hidden');
+        error.classList.remove('hidden');
+      }
+    }, 8000);
+
     iframe.src = url;
     showScreen('player-screen');
 
-    // 端末が許せば全画面に切替 (iOS Safari は要素の全画面化を許可しないが
-    // PWA / 画面遷移自体でビューポート全体を占有するので問題なし)
     const container = document.getElementById('player-container');
     requestAnimationFrame(() => {
-      // まずページ全体を全画面化 (Android Chrome など)、次にプレーヤー要素も試す
       tryEnterFullscreen(document.documentElement);
       tryEnterFullscreen(container);
       tryLockOrientation();
@@ -384,6 +404,8 @@
   function closePlayer() {
     const iframe = document.getElementById('player-iframe');
     iframe.src = 'about:blank';
+    document.getElementById('player-loading').classList.add('hidden');
+    document.getElementById('player-error').classList.add('hidden');
     tryExitFullscreen();
     tryUnlockOrientation();
     showScreen('home-screen');
@@ -464,6 +486,11 @@
     });
 
     document.getElementById('player-back').addEventListener('click', closePlayer);
+
+    document.getElementById('player-error-open').addEventListener('click', () => {
+      const url = document.getElementById('player-error-url').textContent;
+      if (url) window.open(url, '_blank', 'noopener');
+    });
 
     document.getElementById('manual-form').addEventListener('submit', (e) => {
       e.preventDefault();

@@ -82,6 +82,20 @@
   <!-- プレーヤー画面 -->
   <section id="player-screen" class="screen player">
     <button id="player-back" class="back-btn floating" type="button" aria-label="閉じる">✕</button>
+    <div id="player-loading" class="player-loading">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>動画を読み込み中…</p>
+    </div>
+    <div id="player-error" class="player-error hidden">
+      <div class="player-error-card">
+        <h3>動画を表示できませんでした</h3>
+        <p>
+          hihaho の動画設定で、このアプリのドメインが「埋め込み許可ドメイン」に追加されているかご確認ください。
+        </p>
+        <p class="player-error-url" id="player-error-url"></p>
+        <button id="player-error-open" class="secondary-btn" type="button">ブラウザで開く</button>
+      </div>
+    </div>
     <div id="player-container" class="player-container">
       <iframe
         id="player-iframe"
