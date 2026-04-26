@@ -3,10 +3,12 @@
 
   const STORAGE_KEY = 'hihaho-qr-history-v1';
   const THUMBS_KEY = 'hihaho-qr-thumbs-v1';
+  const TRASH_KEY = 'hihaho-qr-trash-v1';
   const LANG_KEY = 'hihaho-qr-lang';
   const SORT_KEY = 'hihaho-qr-sort';
   const SORT_MODES = ['date_desc', 'date_asc', 'name_asc', 'name_desc', 'custom'];
   const DEFAULT_SORT = 'date_desc';
+  const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 日
 
   // ----- 国際化 -----
   const I18N = {
@@ -36,6 +38,16 @@
       'sort.nameAsc': '名前 (A→Z)',
       'sort.nameDesc': '名前 (Z→A)',
       'sort.custom': 'カスタム順 (ドラッグ)',
+      'menu.trash': 'ゴミ箱',
+      'trash.title': 'ゴミ箱',
+      'trash.empty': 'ゴミ箱は空です。',
+      'trash.viewItems': 'ゴミ箱を見る',
+      'trash.emptyAction': 'ゴミ箱を空にする',
+      'trash.confirmEmpty': 'ゴミ箱を空にしますか? (元に戻せません)',
+      'trash.confirmPermDelete': 'この動画を完全に削除しますか? (元に戻せません)',
+      'trash.daysLeft': '{n}日後に自動削除',
+      'trash.daysLeftZero': '間もなく自動削除',
+      'trash.retentionHint': '削除した動画は30日間ゴミ箱に保管されます。',
       'install.heading': 'アプリとして使う',
       'install.ios':
         'Safari の「共有」ボタンから「ホーム画面に追加」を選ぶと、URLバーなしの全画面アプリとして使えます。',
@@ -53,6 +65,9 @@
       'aria.playItem': '再生',
       'aria.prevVideo': '前の動画',
       'aria.nextVideo': '次の動画',
+      'aria.restore': '復元',
+      'aria.permDelete': '完全に削除',
+      'aria.back': '戻る',
       'scan.title': 'QRコードをスキャン',
       'scan.hint': 'hihaho の QRコードをカメラに向けてください',
       'scan.libError':
@@ -93,6 +108,16 @@
       'sort.nameAsc': 'Name (A→Z)',
       'sort.nameDesc': 'Name (Z→A)',
       'sort.custom': 'Custom (drag)',
+      'menu.trash': 'Trash',
+      'trash.title': 'Trash',
+      'trash.empty': 'Trash is empty.',
+      'trash.viewItems': 'View trash',
+      'trash.emptyAction': 'Empty trash',
+      'trash.confirmEmpty': 'Empty the trash? This cannot be undone.',
+      'trash.confirmPermDelete': 'Permanently delete this video? This cannot be undone.',
+      'trash.daysLeft': '{n} day(s) until auto-delete',
+      'trash.daysLeftZero': 'Will be auto-deleted soon',
+      'trash.retentionHint': 'Deleted videos stay in the trash for 30 days.',
       'install.heading': 'Install as app',
       'install.ios':
         'Use Safari\'s Share button > "Add to Home Screen" to install this site as a fullscreen app.',
@@ -109,6 +134,9 @@
       'aria.playItem': 'Play',
       'aria.prevVideo': 'Previous video',
       'aria.nextVideo': 'Next video',
+      'aria.restore': 'Restore',
+      'aria.permDelete': 'Delete permanently',
+      'aria.back': 'Back',
       'scan.title': 'Scan QR Code',
       'scan.hint': 'Aim the camera at the hihaho QR code',
       'scan.libError':
@@ -253,6 +281,13 @@
   }
 
   function addToHistory({ uuid, version }) {
+    // ゴミ箱に同 UUID があれば取り出して、メタデータを引き継ぐ
+    const trash = loadTrash();
+    const trashed = trash.find((t) => t.uuid === uuid);
+    if (trashed) {
+      saveTrash(trash.filter((t) => t.uuid !== uuid));
+    }
+
     const history = loadHistory();
     const existing = history.find((item) => item.uuid === uuid);
     const filtered = history.filter((item) => item.uuid !== uuid);
@@ -260,22 +295,27 @@
       uuid,
       version: version || null,
       addedAt: Date.now(),
-      // 既存レコードのタイトル/取得状況は保持
-      title: existing ? existing.title || null : null,
-      metaTriedAt: existing ? existing.metaTriedAt || null : null,
+      // 既存 (履歴) → ゴミ箱 → null の優先順でタイトル/取得状況を引き継ぐ
+      title:
+        (existing && existing.title) ||
+        (trashed && trashed.title) ||
+        null,
+      metaTriedAt:
+        (existing && existing.metaTriedAt) ||
+        (trashed && trashed.metaTriedAt) ||
+        null,
     });
     saveHistory(filtered);
   }
 
   function removeFromHistory(uuid) {
-    const filtered = loadHistory().filter((item) => item.uuid !== uuid);
-    saveHistory(filtered);
-    removeThumb(uuid);
+    // ハード削除ではなくゴミ箱へ移動 (30 日後に自動削除)
+    moveToTrash(uuid);
   }
 
   function clearHistory() {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(THUMBS_KEY);
+    // 全削除もゴミ箱へ。30 日以内ならゴミ箱画面から復元可能。
+    moveAllToTrash();
   }
 
   function updateHistoryItem(uuid, patch) {
@@ -331,6 +371,93 @@
       delete map[uuid];
       saveThumbs(map);
     }
+  }
+
+  // ----- ゴミ箱 (削除した動画を 30 日間ソフト保管) -----
+  function loadTrash() {
+    try {
+      const raw = localStorage.getItem(TRASH_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveTrash(items) {
+    try {
+      localStorage.setItem(TRASH_KEY, JSON.stringify(items));
+    } catch {
+      // QuotaExceeded — 古いものから半分削って再試行
+      try {
+        const trimmed = items.slice(0, Math.floor(items.length / 2));
+        localStorage.setItem(TRASH_KEY, JSON.stringify(trimmed));
+      } catch {}
+    }
+  }
+
+  // 30 日経過したものをハード削除する。サムネイルも一緒に消す。
+  function autoPurgeTrash() {
+    const cutoff = Date.now() - TRASH_RETENTION_MS;
+    const trash = loadTrash();
+    const expired = trash.filter((t) => !t.deletedAt || t.deletedAt < cutoff);
+    if (expired.length === 0) return;
+    expired.forEach((t) => removeThumb(t.uuid));
+    const remaining = trash.filter((t) => t.deletedAt && t.deletedAt >= cutoff);
+    saveTrash(remaining);
+  }
+
+  function moveToTrash(uuid) {
+    const history = loadHistory();
+    const item = history.find((h) => h.uuid === uuid);
+    if (!item) return;
+    saveHistory(history.filter((h) => h.uuid !== uuid));
+    const trash = loadTrash().filter((t) => t.uuid !== uuid);
+    trash.unshift({ ...item, deletedAt: Date.now() });
+    saveTrash(trash);
+  }
+
+  function moveAllToTrash() {
+    const history = loadHistory();
+    if (history.length === 0) return;
+    const now = Date.now();
+    const trash = loadTrash();
+    const existingUuids = new Set(trash.map((t) => t.uuid));
+    for (const item of history) {
+      if (existingUuids.has(item.uuid)) {
+        // 既にゴミ箱にある UUID は履歴側を捨てるだけ
+        continue;
+      }
+      trash.unshift({ ...item, deletedAt: now });
+    }
+    saveTrash(trash);
+    saveHistory([]);
+  }
+
+  function restoreFromTrash(uuid) {
+    const trash = loadTrash();
+    const item = trash.find((t) => t.uuid === uuid);
+    if (!item) return;
+    saveTrash(trash.filter((t) => t.uuid !== uuid));
+    const { deletedAt: _del, ...rest } = item;
+    void _del;
+    const history = loadHistory();
+    const filtered = history.filter((h) => h.uuid !== uuid);
+    filtered.unshift(rest);
+    saveHistory(filtered);
+  }
+
+  function permanentlyDeleteFromTrash(uuid) {
+    const trash = loadTrash();
+    saveTrash(trash.filter((t) => t.uuid !== uuid));
+    removeThumb(uuid);
+  }
+
+  function emptyTrash() {
+    const trash = loadTrash();
+    trash.forEach((t) => removeThumb(t.uuid));
+    saveTrash([]);
   }
 
   // ----- hihaho メタデータ取得 -----
@@ -696,12 +823,130 @@
         if (confirm(t('app.confirmDeleteOne'))) {
           removeFromHistory(item.uuid);
           renderHistory();
+          refreshTrashUi();
         }
       });
 
       frag.appendChild(li);
     }
     list.appendChild(frag);
+  }
+
+  // ----- ゴミ箱画面の描画 -----
+  function formatTrashRemaining(item) {
+    const remainingMs = TRASH_RETENTION_MS - (Date.now() - (item.deletedAt || 0));
+    const days = Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+    if (days <= 0) return t('trash.daysLeftZero');
+    return t('trash.daysLeft').replace('{n}', String(days));
+  }
+
+  function renderTrash() {
+    const list = document.getElementById('trash-list');
+    const empty = document.getElementById('trash-empty');
+    const emptyAllBtn = document.getElementById('trash-empty-all');
+    if (!list || !empty || !emptyAllBtn) return;
+    const trash = loadTrash().slice().sort(
+      (a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)
+    );
+    list.innerHTML = '';
+
+    if (trash.length === 0) {
+      empty.classList.remove('hidden');
+      emptyAllBtn.classList.add('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    emptyAllBtn.classList.remove('hidden');
+
+    const frag = document.createDocumentFragment();
+    for (const item of trash) {
+      const li = document.createElement('li');
+      li.className = 'history-item';
+      li.dataset.uuid = item.uuid;
+
+      const thumb = document.createElement('div');
+      thumb.className = 'history-thumb';
+      const cached = getThumb(item.uuid);
+      if (cached) {
+        const imgEl = document.createElement('img');
+        imgEl.src = cached;
+        imgEl.alt = '';
+        imgEl.loading = 'lazy';
+        thumb.classList.add('with-image');
+        thumb.appendChild(imgEl);
+      } else {
+        thumb.appendChild(makeIcon('play_arrow'));
+      }
+
+      const info = document.createElement('div');
+      info.className = 'history-info';
+
+      const titleEl = document.createElement('div');
+      titleEl.className = 'history-title';
+      if (item.title) {
+        titleEl.textContent = item.title;
+      } else {
+        titleEl.textContent = t('app.untitled');
+        titleEl.classList.add('placeholder');
+      }
+      titleEl.title = item.uuid;
+
+      const meta = document.createElement('div');
+      meta.className = 'history-meta';
+      const remainingSpan = document.createElement('span');
+      remainingSpan.textContent = formatTrashRemaining(item);
+      meta.appendChild(remainingSpan);
+
+      info.appendChild(titleEl);
+      info.appendChild(meta);
+
+      const actions = document.createElement('div');
+      actions.className = 'history-actions';
+
+      const restoreBtn = document.createElement('button');
+      restoreBtn.type = 'button';
+      restoreBtn.className = 'icon-btn';
+      restoreBtn.setAttribute('aria-label', t('aria.restore'));
+      restoreBtn.appendChild(makeIcon('restore_from_trash'));
+      restoreBtn.addEventListener('click', () => {
+        restoreFromTrash(item.uuid);
+        renderTrash();
+        renderHistory();
+        refreshTrashUi();
+      });
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'icon-btn danger';
+      delBtn.setAttribute('aria-label', t('aria.permDelete'));
+      delBtn.appendChild(makeIcon('delete_forever'));
+      delBtn.addEventListener('click', () => {
+        if (confirm(t('trash.confirmPermDelete'))) {
+          permanentlyDeleteFromTrash(item.uuid);
+          renderTrash();
+          refreshTrashUi();
+        }
+      });
+
+      actions.appendChild(restoreBtn);
+      actions.appendChild(delBtn);
+
+      li.appendChild(thumb);
+      li.appendChild(info);
+      li.appendChild(actions);
+      frag.appendChild(li);
+    }
+    list.appendChild(frag);
+  }
+
+  // メニュー側のバッジ + ボタン状態を最新に
+  function refreshTrashUi() {
+    const count = loadTrash().length;
+    document.querySelectorAll('.menu-trash-count').forEach((el) => {
+      el.textContent = count > 0 ? String(count) : '';
+    });
+    const emptyBtn = document.getElementById('menu-trash-empty');
+    if (emptyBtn) emptyBtn.classList.toggle('disabled', count === 0);
   }
 
   // ----- 画面切替 -----
@@ -1173,6 +1418,19 @@
     });
   }
 
+  function closeMenu() {
+    const overlay = document.getElementById('menu-overlay');
+    if (!overlay) return;
+    overlay.classList.add('hidden');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+
+  function openTrashScreen() {
+    closeMenu();
+    renderTrash();
+    showScreen('trash-screen');
+  }
+
   function setupMenu() {
     const menuBtn = document.getElementById('menu-btn');
     const overlay = document.getElementById('menu-overlay');
@@ -1184,10 +1442,7 @@
       overlay.setAttribute('aria-hidden', 'false');
       refreshLangActive();
       refreshSortActive();
-    }
-    function closeMenu() {
-      overlay.classList.add('hidden');
-      overlay.setAttribute('aria-hidden', 'true');
+      refreshTrashUi();
     }
 
     menuBtn.addEventListener('click', openMenu);
@@ -1217,6 +1472,22 @@
         }
       });
     });
+
+    const trashViewBtn = document.getElementById('menu-trash-view');
+    if (trashViewBtn) {
+      trashViewBtn.addEventListener('click', openTrashScreen);
+    }
+    const trashEmptyBtn = document.getElementById('menu-trash-empty');
+    if (trashEmptyBtn) {
+      trashEmptyBtn.addEventListener('click', () => {
+        if (loadTrash().length === 0) return;
+        if (confirm(t('trash.confirmEmpty'))) {
+          emptyTrash();
+          refreshTrashUi();
+          renderTrash();
+        }
+      });
+    }
   }
 
   // ----- プレーヤーバーの自動非表示 -----
@@ -1388,8 +1659,10 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     applyTranslations();
+    autoPurgeTrash();
     setupMenu();
     renderHistory();
+    refreshTrashUi();
     setupSortable();
     setupPlayerSwipeNav();
     setupPlayerTapOverlay();
@@ -1406,6 +1679,26 @@
     });
 
     document.getElementById('player-back').addEventListener('click', closePlayer);
+
+    // ゴミ箱画面のヘッダー
+    const trashBack = document.getElementById('trash-back');
+    if (trashBack) {
+      trashBack.addEventListener('click', () => {
+        showScreen('home-screen');
+        renderHistory();
+      });
+    }
+    const trashEmptyAll = document.getElementById('trash-empty-all');
+    if (trashEmptyAll) {
+      trashEmptyAll.addEventListener('click', () => {
+        if (loadTrash().length === 0) return;
+        if (confirm(t('trash.confirmEmpty'))) {
+          emptyTrash();
+          refreshTrashUi();
+          renderTrash();
+        }
+      });
+    }
 
     document.getElementById('player-error-open').addEventListener('click', () => {
       const url = document.getElementById('player-error-url').textContent;
@@ -1432,6 +1725,7 @@
       if (confirm(t('app.confirmDeleteAll'))) {
         clearHistory();
         renderHistory();
+        refreshTrashUi();
       }
     });
 

@@ -172,6 +172,26 @@
     </button>
   </section>
 
+  <!-- ゴミ箱画面 -->
+  <section id="trash-screen" class="screen">
+    <header class="app-header">
+      <button id="trash-back" class="back-btn" type="button" aria-label="戻る" data-i18n-aria="aria.back">
+        <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+      </button>
+      <h2 data-i18n="trash.title">ゴミ箱</h2>
+      <button id="trash-empty-all" class="text-btn hidden" type="button" data-i18n="trash.emptyAction">ゴミ箱を空にする</button>
+    </header>
+    <main class="trash-main">
+      <p class="trash-hint" data-i18n="trash.retentionHint">
+        削除した動画は30日間ゴミ箱に保管されます。
+      </p>
+      <ul id="trash-list" class="history-list"></ul>
+      <p id="trash-empty" class="empty-message hidden" data-i18n="trash.empty">
+        ゴミ箱は空です。
+      </p>
+    </main>
+  </section>
+
   <!-- メニュー (左からスライド) -->
   <div id="menu-overlay" class="menu-overlay hidden" aria-hidden="true">
     <aside class="menu-panel" role="dialog" aria-modal="true" aria-labelledby="menu-title">
@@ -217,6 +237,23 @@
           <button class="menu-option-btn menu-sort-btn" type="button" data-sort="custom">
             <span data-i18n="sort.custom">カスタム順 (ドラッグ)</span>
             <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="menu-section">
+        <h3 data-i18n="menu.trash">ゴミ箱</h3>
+        <p class="menu-section-hint" data-i18n="trash.retentionHint">
+          削除した動画は30日間ゴミ箱に保管されます。
+        </p>
+        <div class="menu-options">
+          <button id="menu-trash-view" class="menu-option-btn" type="button">
+            <span data-i18n="trash.viewItems">ゴミ箱を見る</span>
+            <span class="menu-trash-count" aria-hidden="true"></span>
+          </button>
+          <button id="menu-trash-empty" class="menu-option-btn menu-action-danger" type="button">
+            <span data-i18n="trash.emptyAction">ゴミ箱を空にする</span>
+            <span class="material-symbols-outlined" aria-hidden="true">delete_forever</span>
           </button>
         </div>
       </section>

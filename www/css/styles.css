@@ -84,6 +84,7 @@ button {
 .app-header h2 {
   font-size: 16px;
   font-weight: 600;
+  flex: 1;
 }
 
 .app-header h1 {
@@ -196,6 +197,64 @@ button {
 
 .menu-option-btn.active .menu-option-check {
   visibility: visible;
+}
+
+.menu-section-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: -2px 4px 10px;
+}
+
+/* ゴミ箱を見るボタンに表示する件数バッジ */
+.menu-trash-count {
+  background: var(--bg-elev-2);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
+}
+
+.menu-trash-count:empty {
+  display: none;
+}
+
+/* 「ゴミ箱を空にする」など破壊的アクションボタン */
+.menu-action-danger {
+  color: var(--danger-fg);
+}
+
+.menu-action-danger .material-symbols-outlined {
+  color: var(--danger-fg);
+  font-size: 18px;
+}
+
+.menu-action-danger.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ゴミ箱画面 */
+.trash-main {
+  flex: 1;
+  padding: 16px 16px calc(var(--safe-bottom) + 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.trash-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  background: var(--bg-elev);
+  border-radius: 10px;
+  padding: 10px 12px;
 }
 
 .header-icon-btn {
