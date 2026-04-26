@@ -2,7 +2,15 @@
   'use strict';
 
   const STORAGE_KEY = 'hihaho-qr-history-v1';
+  const THUMBS_KEY = 'hihaho-qr-thumbs-v1';
   const MAX_HISTORY = 200;
+  const META_FETCH_TIMEOUT_MS = 8000;
+  const THUMB_FETCH_TIMEOUT_MS = 12000;
+  const THUMB_MAX_W = 320;
+  const THUMB_MAX_H = 180;
+  const THUMB_QUALITY = 0.72;
+  // 取得失敗の再試行間隔 (24h)
+  const META_RETRY_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
   // hihaho URL を解析する。許容する形式:
   //   https://player.hihaho.com/<UUID>
@@ -61,11 +69,15 @@
 
   function addToHistory({ uuid, version }) {
     const history = loadHistory();
+    const existing = history.find((item) => item.uuid === uuid);
     const filtered = history.filter((item) => item.uuid !== uuid);
     filtered.unshift({
       uuid,
       version: version || null,
       addedAt: Date.now(),
+      // 既存レコードのタイトル/取得状況は保持
+      title: existing ? existing.title || null : null,
+      metaTriedAt: existing ? existing.metaTriedAt || null : null,
     });
     saveHistory(filtered);
   }
@@ -73,10 +85,234 @@
   function removeFromHistory(uuid) {
     const filtered = loadHistory().filter((item) => item.uuid !== uuid);
     saveHistory(filtered);
+    removeThumb(uuid);
   }
 
   function clearHistory() {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(THUMBS_KEY);
+  }
+
+  function updateHistoryItem(uuid, patch) {
+    const history = loadHistory();
+    const idx = history.findIndex((h) => h.uuid === uuid);
+    if (idx < 0) return null;
+    history[idx] = { ...history[idx], ...patch };
+    saveHistory(history);
+    return history[idx];
+  }
+
+  // ----- サムネイルキャッシュ (localStorage に dataURL で保存) -----
+  function loadThumbs() {
+    try {
+      const raw = localStorage.getItem(THUMBS_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveThumbs(map) {
+    try {
+      localStorage.setItem(THUMBS_KEY, JSON.stringify(map));
+    } catch {
+      // QuotaExceeded など → 履歴に存在する分だけ残して再保存
+      try {
+        const validUuids = new Set(loadHistory().map((h) => h.uuid));
+        const trimmed = {};
+        for (const [uuid, val] of Object.entries(map)) {
+          if (validUuids.has(uuid)) trimmed[uuid] = val;
+        }
+        localStorage.setItem(THUMBS_KEY, JSON.stringify(trimmed));
+      } catch {}
+    }
+  }
+
+  function getThumb(uuid) {
+    return loadThumbs()[uuid] || null;
+  }
+
+  function setThumb(uuid, dataUrl) {
+    const map = loadThumbs();
+    map[uuid] = dataUrl;
+    saveThumbs(map);
+  }
+
+  function removeThumb(uuid) {
+    const map = loadThumbs();
+    if (uuid in map) {
+      delete map[uuid];
+      saveThumbs(map);
+    }
+  }
+
+  // ----- hihaho メタデータ取得 -----
+  // hihaho 自身は player.hihaho.com に CORS ヘッダを返さないため、
+  // r.jina.ai の HTML プロキシ経由で og:title / og:image を取得する。
+  function fetchWithTimeout(url, opts, ms) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { ...(opts || {}), signal: controller.signal })
+      .finally(() => clearTimeout(timer));
+  }
+
+  function decodeHtmlEntities(s) {
+    if (!s) return s;
+    const el = document.createElement('textarea');
+    el.innerHTML = s;
+    return el.value;
+  }
+
+  function pickMeta(html, prop) {
+    // <meta property="og:title" content="..."> と
+    // <meta content="..." property="og:title"> の両形式に対応
+    const re1 = new RegExp(
+      'property=["\']' + prop + '["\'][^>]*content=["\']([^"\']+)["\']',
+      'i'
+    );
+    const re2 = new RegExp(
+      'content=["\']([^"\']+)["\'][^>]*property=["\']' + prop + '["\']',
+      'i'
+    );
+    const m = html.match(re1) || html.match(re2);
+    return m ? decodeHtmlEntities(m[1]) : null;
+  }
+
+  async function fetchHihahoMetadata(item) {
+    const embedUrl = buildEmbedUrl(item);
+    // r.jina.ai 経由で raw HTML を取得 (CORS OK, og タグを取り出すため)
+    const proxyUrl = 'https://r.jina.ai/' + embedUrl;
+    const res = await fetchWithTimeout(
+      proxyUrl,
+      { headers: { 'X-Return-Format': 'html', Accept: 'text/html' } },
+      META_FETCH_TIMEOUT_MS
+    );
+    if (!res.ok) throw new Error('metadata fetch failed: ' + res.status);
+    const html = await res.text();
+    let title = pickMeta(html, 'og:title');
+    if (!title) {
+      const tm = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      if (tm) title = decodeHtmlEntities(tm[1]);
+    }
+    // hihaho の <title> は "hihaho - <Title>" 形式。プレフィックス除去
+    if (title) title = title.replace(/^\s*hihaho\s*[-–—:]\s*/i, '').trim();
+    let image = pickMeta(html, 'og:image');
+    if (image && image.startsWith('//')) image = 'https:' + image;
+    return { title: title || null, thumbnailUrl: image || null };
+  }
+
+  function loadImageFromBlob(blob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => resolve({ img, url });
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('image decode failed'));
+      };
+      img.src = url;
+    });
+  }
+
+  async function fetchThumbnailDataUrl(srcUrl) {
+    const res = await fetchWithTimeout(srcUrl, { mode: 'cors' }, THUMB_FETCH_TIMEOUT_MS);
+    if (!res.ok) throw new Error('thumb fetch failed: ' + res.status);
+    const blob = await res.blob();
+    const { img, url: objUrl } = await loadImageFromBlob(blob);
+    try {
+      const ratio = Math.min(THUMB_MAX_W / img.width, THUMB_MAX_H / img.height, 1);
+      const w = Math.max(1, Math.round(img.width * ratio));
+      const h = Math.max(1, Math.round(img.height * ratio));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      return canvas.toDataURL('image/jpeg', THUMB_QUALITY);
+    } finally {
+      URL.revokeObjectURL(objUrl);
+    }
+  }
+
+  // 1 件分のメタデータ + サムネイルを取得して保存。
+  // すでに揃っていれば何もしない。何かしら更新したら true。
+  async function ensureMetadata(item, { force = false } = {}) {
+    const hasTitle = !!item.title;
+    const hasThumb = !!getThumb(item.uuid);
+    if (!force && hasTitle && hasThumb) return false;
+    if (
+      !force &&
+      item.metaTriedAt &&
+      Date.now() - item.metaTriedAt < META_RETRY_INTERVAL_MS &&
+      hasTitle === !!item.title // 直近で試して状況に変化なし
+    ) {
+      // 直近で試して失敗 → しばらくは再試行しない
+      if (!hasTitle || !hasThumb) return false;
+    }
+
+    let updated = false;
+    try {
+      const meta = await fetchHihahoMetadata(item);
+      const patch = { metaTriedAt: Date.now() };
+      if (meta.title && !item.title) {
+        patch.title = meta.title;
+        updated = true;
+      }
+      const next = updateHistoryItem(item.uuid, patch);
+      if (next) Object.assign(item, next);
+
+      if (meta.thumbnailUrl && (!hasThumb || force)) {
+        try {
+          const dataUrl = await fetchThumbnailDataUrl(meta.thumbnailUrl);
+          setThumb(item.uuid, dataUrl);
+          updated = true;
+        } catch {
+          // サムネイル取得失敗は許容
+        }
+      }
+    } catch {
+      updateHistoryItem(item.uuid, { metaTriedAt: Date.now() });
+    }
+    return updated;
+  }
+
+  // 履歴全体に対して順次バックフィル (リクエスト集中を避けるため逐次実行)
+  let metadataBackfillRunning = false;
+  async function backfillMissingMetadata() {
+    if (metadataBackfillRunning) return;
+    metadataBackfillRunning = true;
+    try {
+      let anyUpdated = false;
+      const list = loadHistory();
+      for (const item of list) {
+        if (item.title && getThumb(item.uuid)) continue;
+        if (
+          item.metaTriedAt &&
+          Date.now() - item.metaTriedAt < META_RETRY_INTERVAL_MS
+        ) {
+          continue;
+        }
+        const updated = await ensureMetadata(item);
+        if (updated) {
+          anyUpdated = true;
+          renderHistory();
+        }
+      }
+      if (anyUpdated) renderHistory();
+    } finally {
+      metadataBackfillRunning = false;
+    }
+  }
+
+  // ----- アイコン (Material Symbols) -----
+  function makeIcon(name) {
+    const el = document.createElement('span');
+    el.className = 'material-symbols-outlined';
+    el.setAttribute('aria-hidden', 'true');
+    el.textContent = name;
+    return el;
   }
 
   // ----- 履歴の描画 -----
@@ -88,20 +324,45 @@
     minute: '2-digit',
   });
 
+  // ----- 検索 -----
+  let searchQuery = '';
+  const EMPTY_DEFAULT_HTML =
+    'まだ視聴履歴はありません。<br />「QRコードをスキャン」から始めましょう。';
+
+  function getFilteredHistory() {
+    const all = loadHistory();
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter((item) => {
+      const title = (item.title || '').toLowerCase();
+      const uuid = item.uuid.toLowerCase();
+      const version = (item.version ? String(item.version) : '').toLowerCase();
+      return title.includes(q) || uuid.includes(q) || version.includes(q);
+    });
+  }
+
   function renderHistory() {
     const list = document.getElementById('history-list');
     const empty = document.getElementById('empty-message');
     const clearBtn = document.getElementById('clear-all-btn');
-    const history = loadHistory();
+    const allHistory = loadHistory();
+    const history = getFilteredHistory();
     list.innerHTML = '';
 
-    if (history.length === 0) {
+    if (allHistory.length === 0) {
       empty.classList.remove('hidden');
+      empty.innerHTML = EMPTY_DEFAULT_HTML;
       clearBtn.classList.add('hidden');
       return;
     }
-    empty.classList.add('hidden');
     clearBtn.classList.remove('hidden');
+
+    if (history.length === 0) {
+      empty.classList.remove('hidden');
+      empty.textContent = '該当する動画がありません。';
+      return;
+    }
+    empty.classList.add('hidden');
 
     const frag = document.createDocumentFragment();
     for (const item of history) {
@@ -110,16 +371,32 @@
 
       const thumb = document.createElement('div');
       thumb.className = 'history-thumb';
-      thumb.textContent = '▶';
+      const cachedThumb = getThumb(item.uuid);
+      if (cachedThumb) {
+        const imgEl = document.createElement('img');
+        imgEl.src = cachedThumb;
+        imgEl.alt = '';
+        imgEl.loading = 'lazy';
+        thumb.classList.add('with-image');
+        thumb.appendChild(imgEl);
+      } else {
+        thumb.appendChild(makeIcon('play_arrow'));
+      }
 
       const info = document.createElement('div');
       info.className = 'history-info';
       info.setAttribute('role', 'button');
       info.setAttribute('tabindex', '0');
 
-      const uuidEl = document.createElement('div');
-      uuidEl.className = 'history-uuid';
-      uuidEl.textContent = item.uuid;
+      const titleEl = document.createElement('div');
+      titleEl.className = 'history-title';
+      if (item.title) {
+        titleEl.textContent = item.title;
+      } else {
+        titleEl.textContent = '(タイトル未取得)';
+        titleEl.classList.add('placeholder');
+      }
+      titleEl.title = item.uuid;
 
       const meta = document.createElement('div');
       meta.className = 'history-meta';
@@ -132,7 +409,7 @@
         meta.appendChild(verSpan);
       }
 
-      info.appendChild(uuidEl);
+      info.appendChild(titleEl);
       info.appendChild(meta);
 
       const actions = document.createElement('div');
@@ -142,13 +419,13 @@
       playBtn.type = 'button';
       playBtn.className = 'icon-btn';
       playBtn.setAttribute('aria-label', '再生');
-      playBtn.textContent = '▶';
+      playBtn.appendChild(makeIcon('play_arrow'));
 
       const delBtn = document.createElement('button');
       delBtn.type = 'button';
       delBtn.className = 'icon-btn danger';
       delBtn.setAttribute('aria-label', '削除');
-      delBtn.textContent = '🗑';
+      delBtn.appendChild(makeIcon('delete'));
 
       actions.appendChild(playBtn);
       actions.appendChild(delBtn);
@@ -250,7 +527,17 @@
     clearScanError();
     await stopScanner();
     addToHistory(parsed);
+    fetchMetaForRecent(parsed.uuid);
     playVideo(parsed);
+  }
+
+  // 直近に追加した 1 件についてメタデータ + サムネイルを取得し、
+  // 取得できたら履歴を再描画する。バックフィルとは別レーンで動かす。
+  async function fetchMetaForRecent(uuid) {
+    const item = loadHistory().find((h) => h.uuid === uuid);
+    if (!item) return;
+    const updated = await ensureMetadata(item);
+    if (updated) renderHistory();
   }
 
   async function stopScanner() {
@@ -264,6 +551,29 @@
       qrScanner.clear();
     } catch {}
     qrScanner = null;
+  }
+
+  // ----- プレーヤー スケーリング -----
+  // CSS のメディアクエリで iframe を 1280×720 固定にしている画面サイズでは、
+  // window の実サイズに合わせて transform: scale() の倍率を計算する。
+  const PLAYER_DESIGN_W = 1280;
+  const PLAYER_DESIGN_H = 720;
+  const PLAYER_SCALE_MIN_W = 1024;
+  const PLAYER_SCALE_MIN_H = 600;
+
+  function updatePlayerScale() {
+    const container = document.getElementById('player-container');
+    if (!container) return;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (w === 0 || h === 0) return;
+    if (w < PLAYER_SCALE_MIN_W || h < PLAYER_SCALE_MIN_H) {
+      // メディアクエリ非適用 → iframe は 100%×100% なのでスケール不要
+      document.documentElement.style.removeProperty('--player-scale');
+      return;
+    }
+    const scale = Math.min(w / PLAYER_DESIGN_W, h / PLAYER_DESIGN_H);
+    document.documentElement.style.setProperty('--player-scale', String(scale));
   }
 
   // ----- プレーヤー -----
@@ -301,6 +611,7 @@
       tryEnterFullscreen(document.documentElement);
       tryEnterFullscreen(container);
       tryLockOrientation();
+      updatePlayerScale();
     });
   }
 
@@ -477,6 +788,8 @@
     renderHistory();
     setupInstallBanner();
     setupFullscreenToggle();
+    // 既存履歴のうちタイトル/サムネイルが揃っていないものを後追いで取得
+    backfillMissingMetadata();
 
     document.getElementById('scan-btn').addEventListener('click', startScanner);
 
@@ -503,6 +816,7 @@
       // フォーム submit はユーザー操作なので全画面化を試みる
       tryEnterFullscreen(document.documentElement);
       addToHistory(parsed);
+      fetchMetaForRecent(parsed.uuid);
       input.value = '';
       playVideo(parsed);
     });
@@ -512,6 +826,34 @@
         clearHistory();
         renderHistory();
       }
+    });
+
+    // 検索バー
+    const searchInput = document.getElementById('search-input');
+    const searchClear = document.getElementById('search-clear');
+    const searchForm = document.getElementById('search-form');
+
+    function syncSearchUi() {
+      searchClear.classList.toggle('hidden', !searchInput.value);
+    }
+
+    searchInput.addEventListener('input', () => {
+      searchQuery = searchInput.value;
+      syncSearchUi();
+      renderHistory();
+    });
+
+    searchClear.addEventListener('click', () => {
+      searchInput.value = '';
+      searchQuery = '';
+      syncSearchUi();
+      renderHistory();
+      searchInput.focus();
+    });
+
+    searchForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      searchInput.blur();
     });
 
     // ハードウェア戻るボタン (Android) でプレーヤーを閉じられるように
@@ -525,6 +867,12 @@
         showScreen('home-screen');
       }
     });
+
+    // プレーヤーの拡大率をウィンドウサイズに応じて更新
+    updatePlayerScale();
+    window.addEventListener('resize', updatePlayerScale);
+    document.addEventListener('fullscreenchange', updatePlayerScale);
+    document.addEventListener('webkitfullscreenchange', updatePlayerScale);
 
     // Service Worker 登録
     if ('serviceWorker' in navigator) {

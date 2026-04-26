@@ -1,4 +1,5 @@
-const CACHE_NAME = 'hihaho-qr-v1';
+const CACHE_NAME = 'hihaho-qr-v4';
+const FONT_CACHE_NAME = 'hihaho-qr-fonts-v1';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +9,7 @@ const ASSETS = [
   './icons/icon.svg',
   './icons/icon-maskable.svg',
 ];
+const FONT_HOSTS = new Set(['fonts.googleapis.com', 'fonts.gstatic.com']);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -17,11 +19,12 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  const keep = new Set([CACHE_NAME, FONT_CACHE_NAME]);
   event.waitUntil(
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+        Promise.all(keys.filter((k) => !keep.has(k)).map((k) => caches.delete(k)))
       )
   );
   self.clients.claim();
@@ -33,9 +36,28 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // hihaho プレーヤーや QR ライブラリは常にネットワーク優先
+  // Google Fonts (Material Symbols) はキャッシュ優先 + バックグラウンド更新
+  if (FONT_HOSTS.has(url.hostname)) {
+    event.respondWith(
+      caches.open(FONT_CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(req);
+        const fetchPromise = fetch(req)
+          .then((res) => {
+            if (res && (res.status === 200 || res.type === 'opaque')) {
+              cache.put(req, res.clone()).catch(() => {});
+            }
+            return res;
+          })
+          .catch(() => cached);
+        return cached || fetchPromise;
+      })
+    );
+    return;
+  }
+
+  // hihaho プレーヤーや QR ライブラリ等の他ホストはブラウザのデフォルトに任せる
   if (url.origin !== self.location.origin) {
-    return; // ブラウザのデフォルトに任せる
+    return;
   }
 
   // 自オリジンの静的アセットはキャッシュ優先 + ネットワークでフォールバック更新

@@ -41,6 +41,15 @@ button {
   display: none !important;
 }
 
+/* Material Symbols は親要素の font-size を継承し、字のベースラインを揃える */
+.material-symbols-outlined {
+  font-size: 1em;
+  line-height: 1;
+  vertical-align: middle;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .screen {
   display: none;
   flex-direction: column;
@@ -88,8 +97,11 @@ button {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  font-size: 16px;
+  font-size: 22px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .header-icon-btn:active {
@@ -136,9 +148,18 @@ button {
   font-size: 13px;
 }
 
+#install-dismiss {
+  font-size: 18px;
+  padding: 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
 .home-main {
   flex: 1;
-  padding: 20px 16px;
+  padding: 20px 16px calc(var(--safe-bottom) + 96px);
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -219,13 +240,23 @@ button {
 }
 
 .manual-input summary::before {
-  content: "▸ ";
+  content: "chevron_right";
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 1;
   display: inline-block;
-  transition: transform 0.15s ease;
+  vertical-align: -4px;
+  margin-right: 4px;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .manual-input[open] summary::before {
-  content: "▾ ";
+  content: "expand_more";
 }
 
 .manual-form {
@@ -294,16 +325,29 @@ button {
 }
 
 .history-thumb {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+  width: 96px;
+  height: 54px;
+  border-radius: 8px;
   background: var(--bg-elev-2);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 22px;
   color: var(--accent);
   flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.history-thumb.with-image {
+  background: #000;
+}
+
+.history-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .history-info {
@@ -312,12 +356,22 @@ button {
   cursor: pointer;
 }
 
-.history-uuid {
-  font-size: 12px;
+.history-title {
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text);
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-  word-break: break-all;
   line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.history-title.placeholder {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-style: italic;
 }
 
 .history-meta {
@@ -342,7 +396,7 @@ button {
   height: 40px;
   border-radius: 10px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -369,12 +423,85 @@ button {
   line-height: 1.6;
 }
 
-.app-footer {
-  padding: 12px 16px calc(var(--safe-bottom) + 12px);
-  text-align: center;
+/* 画面下に固定された検索バー (Claude モバイル風) */
+.search-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 12px calc(var(--safe-bottom) + 12px);
+  background: rgba(11, 15, 23, 0.85);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  z-index: 5;
+}
+
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elev);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 0 12px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.search-input-wrap:focus-within {
+  border-color: var(--accent);
+  background: var(--bg-elev-2);
+}
+
+.search-icon {
+  font-size: 20px;
   color: var(--text-muted);
-  font-size: 11px;
-  opacity: 0.8;
+  pointer-events: none;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.search-bar input {
+  flex: 1;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  padding: 12px 0;
+  font-size: 15px;
+  outline: none;
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-bar input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-bar input::-webkit-search-cancel-button,
+.search-bar input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  display: none;
+}
+
+.search-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.search-clear:active {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
 }
 
 .back-btn {
@@ -441,6 +568,7 @@ button {
 }
 
 .player-container {
+  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
@@ -449,6 +577,7 @@ button {
   height: 100vh;
   height: 100dvh;
   background: #000;
+  overflow: hidden;
 }
 
 #player-iframe {
@@ -456,6 +585,19 @@ button {
   height: 100%;
   border: 0;
   background: #000;
+}
+
+/* デスクトップ等の大画面では hihaho プレーヤーの内部レイアウト制約で
+   動画が小さく表示されるため、iframe を 16:9 の固定設計サイズで配置し、
+   transform: scale() で画面いっぱいに拡大する。 */
+@media (min-width: 1024px) and (min-height: 600px) {
+  #player-iframe {
+    width: 1280px;
+    height: 720px;
+    flex-shrink: 0;
+    transform: scale(var(--player-scale, 1));
+    transform-origin: center center;
+  }
 }
 
 .player-loading {
