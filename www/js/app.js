@@ -68,6 +68,14 @@
       'aria.restore': '復元',
       'aria.permDelete': '完全に削除',
       'aria.back': '戻る',
+      'aria.share': '共有',
+      'share.title': '共有',
+      'share.line': 'LINE',
+      'share.mail': 'メール',
+      'share.copy': 'URLをコピー',
+      'share.more': 'その他のアプリ',
+      'share.cancel': 'キャンセル',
+      'share.copied': 'URLをコピーしました',
       'scan.title': 'QRコードをスキャン',
       'scan.hint': 'hihaho の QRコードをカメラに向けてください',
       'scan.libError':
@@ -137,6 +145,14 @@
       'aria.restore': 'Restore',
       'aria.permDelete': 'Delete permanently',
       'aria.back': 'Back',
+      'aria.share': 'Share',
+      'share.title': 'Share',
+      'share.line': 'LINE',
+      'share.mail': 'Mail',
+      'share.copy': 'Copy URL',
+      'share.more': 'Other apps',
+      'share.cancel': 'Cancel',
+      'share.copied': 'URL copied',
       'scan.title': 'Scan QR Code',
       'scan.hint': 'Aim the camera at the hihaho QR code',
       'scan.libError':
@@ -745,10 +761,17 @@
       row.className = 'history-row';
       row.dataset.uuid = item.uuid;
 
-      const bg = document.createElement('div');
-      bg.className = 'history-row-bg';
-      bg.setAttribute('aria-hidden', 'true');
-      bg.appendChild(makeIcon('delete'));
+      // 右スワイプで露出する共有用 (左寄せ icon)
+      const bgShare = document.createElement('div');
+      bgShare.className = 'history-row-bg history-row-bg-share';
+      bgShare.setAttribute('aria-hidden', 'true');
+      bgShare.appendChild(makeIcon('share'));
+
+      // 左スワイプで露出する削除用 (右寄せ icon)
+      const bgDelete = document.createElement('div');
+      bgDelete.className = 'history-row-bg history-row-bg-delete';
+      bgDelete.setAttribute('aria-hidden', 'true');
+      bgDelete.appendChild(makeIcon('delete'));
 
       const itemEl = document.createElement('div');
       itemEl.className = 'history-item';
@@ -812,7 +835,8 @@
       itemEl.appendChild(info);
       itemEl.appendChild(actions);
 
-      row.appendChild(bg);
+      row.appendChild(bgShare);
+      row.appendChild(bgDelete);
       row.appendChild(itemEl);
 
       const onPlay = () => playVideo(item);
@@ -826,28 +850,31 @@
       thumb.addEventListener('click', onPlay);
       playBtn.addEventListener('click', onPlay);
 
-      attachRowSwipeToDelete(row, itemEl, item);
+      attachRowSwipe(row, itemEl, item);
 
       frag.appendChild(row);
     }
     list.appendChild(frag);
   }
 
-  // ----- 右スワイプで削除 (Mail 風 swipe to delete) -----
+  // ----- スワイプ操作 (左 = 削除 / 右 = 共有) -----
   // history-list の各行に取り付けるポインタハンドラ。
-  // 横方向の大きなスワイプ (右方向、行幅の 60% 以上) で moveToTrash。
+  // 横方向の大きなスワイプ (行幅の 60% 以上) で確定:
+  //   左方向 (dx < 0) → moveToTrash
+  //   右方向 (dx > 0) → 共有シートを開く
   // 縦方向のスクロールや長押しドラッグ (Sortable) との競合は touch-action と
   // 方向ロックで吸収する。
   const SWIPE_AXIS_THRESHOLD = 6;
   const SWIPE_COMMIT_RATIO = 0.6;
   const SWIPE_COMMIT_MIN_PX = 140;
 
-  function attachRowSwipeToDelete(rowEl, itemEl, item) {
+  function attachRowSwipe(rowEl, itemEl, item) {
     let startX = 0;
     let startY = 0;
     let pointerId = null;
     let active = false;
     let swiping = false;
+    let direction = 0; // -1 = 左 (削除), 1 = 右 (共有)
     let suppressNextClick = false;
 
     const handleDown = (e) => {
@@ -860,6 +887,7 @@
       pointerId = e.pointerId;
       active = true;
       swiping = false;
+      direction = 0;
     };
 
     const handleMove = (e) => {
@@ -873,13 +901,9 @@
           Math.abs(dx) > SWIPE_AXIS_THRESHOLD &&
           Math.abs(dx) > Math.abs(dy) * 1.3
         ) {
-          if (dx <= 0) {
-            // 左方向は無視 (削除は右方向のみ)
-            active = false;
-            return;
-          }
           swiping = true;
-          rowEl.classList.add('swiping');
+          direction = dx > 0 ? 1 : -1;
+          rowEl.classList.add('swiping', direction > 0 ? 'swipe-right' : 'swipe-left');
           suppressNextClick = true;
           try { rowEl.setPointerCapture(e.pointerId); } catch {}
         } else if (Math.abs(dy) > SWIPE_AXIS_THRESHOLD) {
@@ -891,31 +915,45 @@
 
       if (swiping) {
         e.preventDefault();
-        const visibleDx = Math.max(0, dx);
-        itemEl.style.transform = `translateX(${visibleDx}px)`;
+        // スワイプ開始した方向と同じ符号の dx だけ追従させる
+        const constrained = direction > 0 ? Math.max(0, dx) : Math.min(0, dx);
+        itemEl.style.transform = `translateX(${constrained}px)`;
       }
     };
 
     const finishSwipe = (commit) => {
       rowEl.classList.remove('swiping');
       if (commit) {
-        const offset = rowEl.offsetWidth + 60;
+        const sign = direction;
+        const offset = (rowEl.offsetWidth + 60) * sign;
         itemEl.style.transition = 'transform 0.22s ease, opacity 0.22s ease';
         itemEl.style.transform = `translateX(${offset}px)`;
         itemEl.style.opacity = '0';
         setTimeout(() => {
-          removeFromHistory(item.uuid);
-          renderHistory();
-          refreshTrashUi();
+          if (sign < 0) {
+            // 左スワイプ確定 → ゴミ箱へ
+            removeFromHistory(item.uuid);
+            renderHistory();
+            refreshTrashUi();
+          } else {
+            // 右スワイプ確定 → 共有シート + アイテムを元位置にリセット
+            itemEl.style.transition = '';
+            itemEl.style.transform = '';
+            itemEl.style.opacity = '';
+            rowEl.classList.remove('swipe-right', 'swipe-left');
+            openShareSheet(item);
+          }
         }, 220);
       } else {
         itemEl.style.transition = 'transform 0.18s ease';
         itemEl.style.transform = '';
         setTimeout(() => {
           itemEl.style.transition = '';
+          rowEl.classList.remove('swipe-right', 'swipe-left');
         }, 200);
       }
       swiping = false;
+      direction = 0;
     };
 
     const handleUp = (e) => {
@@ -928,7 +966,7 @@
         SWIPE_COMMIT_MIN_PX,
         rowEl.offsetWidth * SWIPE_COMMIT_RATIO
       );
-      finishSwipe(dx >= threshold);
+      finishSwipe(Math.abs(dx) >= threshold && Math.sign(dx) === direction);
     };
 
     const handleCancel = (e) => {
@@ -1528,6 +1566,134 @@
   }
 
   // ----- イベント登録 -----
+  // ----- トースト (URL コピー完了などの軽い通知) -----
+  let toastTimer = null;
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.remove('hidden');
+    // 直後に visible を付与してフェードイン
+    requestAnimationFrame(() => {
+      toast.classList.add('visible');
+    });
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove('visible');
+      setTimeout(() => toast.classList.add('hidden'), 200);
+    }, 1800);
+  }
+
+  // ----- 共有シート -----
+  let currentShareItem = null;
+
+  function openShareSheet(item) {
+    currentShareItem = item;
+    const sheet = document.getElementById('share-sheet');
+    if (!sheet) return;
+    // navigator.share が無いブラウザでは「その他のアプリ」ボタンを隠す
+    const moreBtn = document.getElementById('share-option-more');
+    if (moreBtn) {
+      moreBtn.classList.toggle('hidden', typeof navigator.share !== 'function');
+    }
+    sheet.classList.remove('hidden');
+    sheet.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeShareSheet() {
+    const sheet = document.getElementById('share-sheet');
+    if (!sheet) return;
+    sheet.classList.add('hidden');
+    sheet.setAttribute('aria-hidden', 'true');
+    currentShareItem = null;
+  }
+
+  function buildShareData(item) {
+    const url = buildEmbedUrl(item);
+    const title = item.title || url;
+    return { title, url, text: title };
+  }
+
+  async function performShare(action) {
+    if (!currentShareItem) return;
+    const { title, url, text } = buildShareData(currentShareItem);
+    try {
+      switch (action) {
+        case 'line': {
+          const lineUrl =
+            'https://line.me/R/msg/text/?' +
+            encodeURIComponent(`${title}\n${url}`);
+          window.open(lineUrl, '_blank', 'noopener,noreferrer');
+          break;
+        }
+        case 'mail': {
+          const mailto =
+            'mailto:?subject=' +
+            encodeURIComponent(title) +
+            '&body=' +
+            encodeURIComponent(`${title}\n${url}`);
+          window.location.href = mailto;
+          break;
+        }
+        case 'copy': {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(url);
+          } else {
+            // execCommand フォールバック (古い iOS など)
+            const ta = document.createElement('textarea');
+            ta.value = url;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch {}
+            document.body.removeChild(ta);
+          }
+          showToast(t('share.copied'));
+          break;
+        }
+        case 'more': {
+          if (typeof navigator.share === 'function') {
+            try {
+              await navigator.share({ title, text, url });
+            } catch {
+              // ユーザーがキャンセルした場合等は無視
+            }
+          }
+          break;
+        }
+      }
+    } catch (err) {
+      console.error('share failed', err);
+    }
+  }
+
+  function setupShareSheet() {
+    const sheet = document.getElementById('share-sheet');
+    if (!sheet) return;
+
+    const backdrop = sheet.querySelector('.share-sheet-backdrop');
+    if (backdrop) backdrop.addEventListener('click', closeShareSheet);
+
+    const cancelBtn = document.getElementById('share-sheet-cancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', closeShareSheet);
+
+    sheet.querySelectorAll('.share-option').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const action = btn.dataset.share;
+        await performShare(action);
+        closeShareSheet();
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !sheet.classList.contains('hidden')) {
+        closeShareSheet();
+      }
+    });
+  }
+
   // ----- メニュー (ドロワー) -----
   function refreshLangActive() {
     const current = getLang();
@@ -1794,6 +1960,7 @@
     setupSortable();
     setupPlayerSwipeNav();
     setupPlayerTapOverlay();
+    setupShareSheet();
     setupInstallBanner();
     setupFullscreenToggle();
     // 既存履歴のうちタイトル/サムネイルが揃っていないものを後追いで取得

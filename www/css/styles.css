@@ -91,6 +91,145 @@ button {
   flex: 1;
 }
 
+/* ----- 共有シート (下からスライドアップ) ----- */
+.share-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+}
+
+.share-sheet.hidden {
+  display: none !important;
+}
+
+.share-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.share-sheet-panel {
+  position: relative;
+  width: 100%;
+  background: var(--bg-elev);
+  border-radius: 20px 20px 0 0;
+  padding: 10px 18px calc(var(--safe-bottom) + 14px);
+  animation: shareSheetIn 0.22s ease-out;
+}
+
+@keyframes shareSheetIn {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.share-sheet-handle {
+  width: 40px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 2px;
+  margin: 0 auto 14px;
+}
+
+.share-sheet-panel h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  text-align: center;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.share-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.share-option {
+  background: transparent;
+  border: 0;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.share-option.hidden {
+  display: none !important;
+}
+
+.share-option:active .share-option-icon {
+  transform: scale(0.92);
+}
+
+.share-option-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--bg-elev-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  transition: transform 0.1s ease;
+}
+
+.share-option-icon .material-symbols-outlined {
+  font-size: 24px;
+}
+
+.share-option-icon-line {
+  background: #06c755;
+  color: #fff;
+}
+
+.share-sheet-cancel {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px;
+  margin-top: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ----- トースト ----- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 80px);
+  transform: translateX(-50%);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font-size: 13px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  z-index: 220;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.toast.visible {
+  opacity: 1;
+}
+
+.toast.hidden {
+  display: none;
+}
+
 /* ----- メニュー (ドロワー) ----- */
 .menu-overlay {
   position: fixed;
@@ -501,18 +640,41 @@ button {
   touch-action: pan-y;
 }
 
+/* スワイプ方向に応じて表示される背景レイヤー。
+   両方とも全幅で重なり配置される (DOM 順では bgShare が下、bgDelete が上だが、
+   表示は .swipe-right / .swipe-left クラスで opacity を切り替えるので衝突しない)。 */
 .history-row-bg {
   position: absolute;
   inset: 0;
-  background: var(--danger-bg);
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  padding: 0 24px;
-  color: var(--danger-fg);
   font-size: 26px;
   z-index: 0;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.history-row-bg-share {
+  background: var(--accent);
+  color: #fff;
+  justify-content: flex-start;
+  padding: 0 24px;
+}
+
+.history-row-bg-delete {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+  justify-content: flex-end;
+  padding: 0 24px;
+}
+
+.history-row.swipe-right .history-row-bg-share {
+  opacity: 1;
+}
+
+.history-row.swipe-left .history-row-bg-delete {
+  opacity: 1;
 }
 
 .history-item {

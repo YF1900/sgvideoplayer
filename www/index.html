@@ -192,6 +192,45 @@
     </main>
   </section>
 
+  <!-- 共有シート (右スワイプ確定で下からスライドアップ) -->
+  <div id="share-sheet" class="share-sheet hidden" aria-hidden="true">
+    <div class="share-sheet-backdrop"></div>
+    <div class="share-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="share-sheet-title">
+      <div class="share-sheet-handle" aria-hidden="true"></div>
+      <h3 id="share-sheet-title" data-i18n="share.title">共有</h3>
+      <div class="share-sheet-grid">
+        <button class="share-option" data-share="line" type="button">
+          <span class="share-option-icon share-option-icon-line" aria-hidden="true">
+            <span class="material-symbols-outlined">chat_bubble</span>
+          </span>
+          <span data-i18n="share.line">LINE</span>
+        </button>
+        <button class="share-option" data-share="mail" type="button">
+          <span class="share-option-icon" aria-hidden="true">
+            <span class="material-symbols-outlined">mail</span>
+          </span>
+          <span data-i18n="share.mail">メール</span>
+        </button>
+        <button class="share-option" data-share="copy" type="button">
+          <span class="share-option-icon" aria-hidden="true">
+            <span class="material-symbols-outlined">content_copy</span>
+          </span>
+          <span data-i18n="share.copy">URLをコピー</span>
+        </button>
+        <button class="share-option hidden" id="share-option-more" data-share="more" type="button">
+          <span class="share-option-icon" aria-hidden="true">
+            <span class="material-symbols-outlined">share</span>
+          </span>
+          <span data-i18n="share.more">その他のアプリ</span>
+        </button>
+      </div>
+      <button id="share-sheet-cancel" class="share-sheet-cancel" type="button" data-i18n="share.cancel">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- トースト (URL コピー完了通知など) -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
   <!-- メニュー (左からスライド) -->
   <div id="menu-overlay" class="menu-overlay hidden" aria-hidden="true">
     <aside class="menu-panel" role="dialog" aria-modal="true" aria-labelledby="menu-title">
