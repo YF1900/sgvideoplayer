@@ -477,6 +477,20 @@
     document.getElementById('scan-error').classList.add('hidden');
   }
 
+  // html5-qrcode は qr-reader 要素自身に inline style (height/width 等) を
+  // 書き込んだり、子要素 (video/canvas) を残したりすることがある。
+  // 単に innerHTML を空にしても親要素に残ったスタイルが新しいインスタンスの
+  // 初期サイズ計算を狂わせるため、要素ごと丸ごと作り直す。
+  function ensureFreshQrReader() {
+    const old = document.getElementById('qr-reader');
+    if (!old || !old.parentNode) return null;
+    const fresh = document.createElement('div');
+    fresh.id = 'qr-reader';
+    fresh.className = old.className;
+    old.parentNode.replaceChild(fresh, old);
+    return fresh;
+  }
+
   async function startScanner() {
     if (scannerStarting) return;
     scannerStarting = true;
@@ -497,11 +511,14 @@
       // 前回の実行が残っている場合に備えて完全に停止 + DOM/カメラ解放
       await stopScanner();
 
-      // qr-reader 配下に html5-qrcode が前回挿入した残留 DOM (video/canvas) が
-      // 残っていると新しいインスタンスの初期化と干渉して 2 回目以降の検出が
-      // 不安定になるため、明示的に空にする。
-      const reader = document.getElementById('qr-reader');
-      if (reader) reader.innerHTML = '';
+      // qr-reader 要素自体を新規生成し、html5-qrcode が書き込んだ inline
+      // style / 残留子ノードを完全に取り除く。
+      ensureFreshQrReader();
+
+      // 画面切替直後はレイアウトが未確定で qr-reader の寸法が 0 のまま
+      // ライブラリが初期化されるとビデオ領域が後から伸びず黒い帯が残る。
+      // 次フレームを待ってから初期化することで採寸を正確化する。
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
       qrScanner = new Html5Qrcode('qr-reader', { verbose: false });
 
@@ -512,7 +529,9 @@
           const size = Math.floor(min * 0.7);
           return { width: size, height: size };
         },
-        aspectRatio: 1.0,
+        // aspectRatio は意図的に指定しない。1.0 を渡すと一部環境で
+        // ビデオ領域が縦方向に縮められ、コンテナの下半分が黒く残ったまま
+        // になる現象が発生するため。スキャン枠は qrbox で担保している。
       };
 
       try {
@@ -591,6 +610,9 @@
           v.removeAttribute('src');
         } catch {}
       });
+      // 要素自体を作り直して、ライブラリが残した inline style や属性も含めて
+      // 完全にリセットする。
+      ensureFreshQrReader();
     }
   }
 
