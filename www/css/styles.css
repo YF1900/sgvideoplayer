@@ -721,6 +721,47 @@ button {
   background: #000;
 }
 
+/* iframe の上下に並ぶ前後ナビゲーション用バー。iframe 領域には絶対に
+   重ならないので hihaho 内の hotspot や追加 iframe と干渉しない。 */
+.swipe-nav-bar {
+  flex-shrink: 0;
+  background: rgba(11, 15, 23, 0.92);
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 28px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  width: 100%;
+}
+
+.swipe-nav-top {
+  padding-top: var(--safe-top);
+  min-height: calc(50px + var(--safe-top));
+}
+
+.swipe-nav-bottom {
+  padding-bottom: var(--safe-bottom);
+  min-height: calc(50px + var(--safe-bottom));
+}
+
+.swipe-nav-bar:active {
+  background: var(--bg-elev);
+  color: var(--text);
+}
+
+.swipe-nav-bar.disabled {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
 .player-container {
   position: relative;
   flex: 1;

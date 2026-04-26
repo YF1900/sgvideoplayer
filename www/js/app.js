@@ -51,6 +51,8 @@
       'aria.menu': 'メニュー',
       'aria.delete': '削除',
       'aria.playItem': '再生',
+      'aria.prevVideo': '前の動画',
+      'aria.nextVideo': '次の動画',
       'scan.title': 'QRコードをスキャン',
       'scan.hint': 'hihaho の QRコードをカメラに向けてください',
       'scan.libError':
@@ -105,6 +107,8 @@
       'aria.menu': 'Menu',
       'aria.delete': 'Delete',
       'aria.playItem': 'Play',
+      'aria.prevVideo': 'Previous video',
+      'aria.nextVideo': 'Next video',
       'scan.title': 'Scan QR Code',
       'scan.hint': 'Aim the camera at the hihaho QR code',
       'scan.libError':
@@ -906,8 +910,38 @@
     document.documentElement.style.setProperty('--player-scale', String(scale));
   }
 
+  // ----- プレーヤー (前後ナビゲーション) -----
+  let currentPlayingItem = null;
+
+  function navigateBy(direction) {
+    if (!currentPlayingItem) return;
+    const list = getFilteredHistory();
+    const idx = list.findIndex((it) => it.uuid === currentPlayingItem.uuid);
+    if (idx < 0) return;
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= list.length) return;
+    playVideo(list[newIdx]);
+  }
+
+  function updateNavButtonStates() {
+    const top = document.getElementById('swipe-nav-top');
+    const bottom = document.getElementById('swipe-nav-bottom');
+    if (!top || !bottom) return;
+    if (!currentPlayingItem) {
+      top.classList.add('disabled');
+      bottom.classList.add('disabled');
+      return;
+    }
+    const list = getFilteredHistory();
+    const idx = list.findIndex((it) => it.uuid === currentPlayingItem.uuid);
+    top.classList.toggle('disabled', idx <= 0);
+    bottom.classList.toggle('disabled', idx < 0 || idx >= list.length - 1);
+  }
+
   // ----- プレーヤー -----
   async function playVideo(item) {
+    currentPlayingItem = item;
+    updateNavButtonStates();
     const url = buildEmbedUrl(item);
     const iframe = document.getElementById('player-iframe');
     const loading = document.getElementById('player-loading');
@@ -1049,6 +1083,8 @@
     document.getElementById('player-error').classList.add('hidden');
     tryExitFullscreen();
     tryUnlockOrientation();
+    currentPlayingItem = null;
+    updateNavButtonStates();
     showScreen('home-screen');
     renderHistory();
   }
@@ -1179,6 +1215,63 @@
     });
   }
 
+  // ----- プレーヤー前後ナビゲーション (上下スワイプ + タップ) -----
+  // バーは iframe の上下にだけ存在するので hihaho 内の hotspot や追加 iframe と
+  // 干渉しない。バーをタップ、もしくはバー上で起点となる長めの縦スワイプを行うと
+  // 前後の動画にナビゲートする。
+  function setupPlayerSwipeNav() {
+    const top = document.getElementById('swipe-nav-top');
+    const bottom = document.getElementById('swipe-nav-bottom');
+    bindSwipeNavBar(top, -1);
+    bindSwipeNavBar(bottom, 1);
+  }
+
+  function bindSwipeNavBar(barEl, defaultDirection) {
+    if (!barEl) return;
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+    let tracking = false;
+    let pointerId = null;
+
+    barEl.addEventListener('pointerdown', (e) => {
+      if (!e.isPrimary) return;
+      startX = e.clientX;
+      startY = e.clientY;
+      startTime = Date.now();
+      tracking = true;
+      pointerId = e.pointerId;
+      try { barEl.setPointerCapture(e.pointerId); } catch {}
+    });
+
+    const finish = (e) => {
+      if (!tracking || (pointerId != null && e.pointerId !== pointerId)) return;
+      tracking = false;
+      pointerId = null;
+      const dy = e.clientY - startY;
+      const dx = e.clientX - startX;
+      const dt = Date.now() - startTime;
+      const absDy = Math.abs(dy);
+      const absDx = Math.abs(dx);
+
+      // 縦方向の長めスワイプ → スワイプ方向で next/prev (上スワイプ=次)
+      if (absDy > 50 && absDy > absDx * 1.5 && dt < 1000) {
+        navigateBy(dy < 0 ? 1 : -1);
+        return;
+      }
+      // ほぼ動いていない = タップ → そのバーが示す方向 (上バー=前, 下バー=次)
+      if (absDy < 12 && absDx < 12 && dt < 600) {
+        navigateBy(defaultDirection);
+      }
+    };
+
+    barEl.addEventListener('pointerup', finish);
+    barEl.addEventListener('pointercancel', () => {
+      tracking = false;
+      pointerId = null;
+    });
+  }
+
   // ----- 長押しドラッグ&ドロップ並び替え -----
   function setupSortable() {
     const list = document.getElementById('history-list');
@@ -1208,6 +1301,7 @@
     setupMenu();
     renderHistory();
     setupSortable();
+    setupPlayerSwipeNav();
     setupInstallBanner();
     setupFullscreenToggle();
     // 既存履歴のうちタイトル/サムネイルが揃っていないものを後追いで取得
