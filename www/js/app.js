@@ -465,6 +465,7 @@
   // ----- QRスキャナ -----
   let qrScanner = null;
   let scanLocked = false; // 1回読み取れば以降の連続コールバックを無視
+  let scannerStarting = false; // 多重起動防止
 
   function showScanError(msg) {
     const el = document.getElementById('scan-error');
@@ -477,41 +478,58 @@
   }
 
   async function startScanner() {
-    clearScanError();
-    // ユーザー操作直後に全画面化してブラウザのURLバーを隠す
-    tryEnterFullscreen(document.documentElement);
-    showScreen('scan-screen');
-    scanLocked = false;
-
-    if (typeof Html5Qrcode === 'undefined') {
-      showScanError('QRスキャナの読み込みに失敗しました。ネットワーク接続を確認してください。');
-      return;
-    }
-
-    qrScanner = new Html5Qrcode('qr-reader', { verbose: false });
-
-    const config = {
-      fps: 10,
-      qrbox: (vw, vh) => {
-        const min = Math.min(vw, vh);
-        const size = Math.floor(min * 0.7);
-        return { width: size, height: size };
-      },
-      aspectRatio: 1.0,
-    };
-
+    if (scannerStarting) return;
+    scannerStarting = true;
     try {
-      await qrScanner.start(
-        { facingMode: 'environment' },
-        config,
-        onScanSuccess,
-        () => {} // スキャン中の失敗は無視
-      );
-    } catch (err) {
-      showScanError(
-        'カメラを起動できませんでした。ブラウザの設定でカメラの使用を許可してください。'
-      );
-      console.error(err);
+      clearScanError();
+      // ユーザー操作直後に全画面化してブラウザのURLバーを隠す
+      tryEnterFullscreen(document.documentElement);
+      showScreen('scan-screen');
+      scanLocked = false;
+
+      if (typeof Html5Qrcode === 'undefined') {
+        showScanError(
+          'QRスキャナの読み込みに失敗しました。ネットワーク接続を確認してください。'
+        );
+        return;
+      }
+
+      // 前回の実行が残っている場合に備えて完全に停止 + DOM/カメラ解放
+      await stopScanner();
+
+      // qr-reader 配下に html5-qrcode が前回挿入した残留 DOM (video/canvas) が
+      // 残っていると新しいインスタンスの初期化と干渉して 2 回目以降の検出が
+      // 不安定になるため、明示的に空にする。
+      const reader = document.getElementById('qr-reader');
+      if (reader) reader.innerHTML = '';
+
+      qrScanner = new Html5Qrcode('qr-reader', { verbose: false });
+
+      const config = {
+        fps: 10,
+        qrbox: (vw, vh) => {
+          const min = Math.min(vw, vh);
+          const size = Math.floor(min * 0.7);
+          return { width: size, height: size };
+        },
+        aspectRatio: 1.0,
+      };
+
+      try {
+        await qrScanner.start(
+          { facingMode: 'environment' },
+          config,
+          onScanSuccess,
+          () => {} // スキャン中の失敗は無視
+        );
+      } catch (err) {
+        showScanError(
+          'カメラを起動できませんでした。ブラウザの設定でカメラの使用を許可してください。'
+        );
+        console.error(err);
+      }
+    } finally {
+      scannerStarting = false;
     }
   }
 
@@ -541,16 +559,39 @@
   }
 
   async function stopScanner() {
-    if (!qrScanner) return;
-    try {
-      if (qrScanner.isScanning) {
-        await qrScanner.stop();
-      }
-    } catch {}
-    try {
-      qrScanner.clear();
-    } catch {}
+    // 取り込んだローカル参照に対して操作する。再入時の二重 stop を避けるため
+    // qrScanner はここで先に null に戻しておく。
+    const scanner = qrScanner;
     qrScanner = null;
+    if (scanner) {
+      try {
+        if (scanner.isScanning) {
+          await scanner.stop();
+        }
+      } catch {}
+      try {
+        scanner.clear();
+      } catch {}
+    }
+    // qr-reader 配下に残った video / MediaStream が確実に解放されるよう、
+    // すべての track を明示的に stop する。これがないと次回 getUserMedia 呼び出し
+    // と前回のカメラリリースがレースしてカメラ起動が失敗することがある。
+    const reader = document.getElementById('qr-reader');
+    if (reader) {
+      reader.querySelectorAll('video').forEach((v) => {
+        try {
+          const stream = v.srcObject;
+          if (stream && typeof stream.getTracks === 'function') {
+            stream.getTracks().forEach((t) => {
+              try { t.stop(); } catch {}
+            });
+          }
+          v.srcObject = null;
+          v.pause();
+          v.removeAttribute('src');
+        } catch {}
+      });
+    }
   }
 
   // ----- プレーヤー スケーリング -----
