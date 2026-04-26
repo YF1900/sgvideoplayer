@@ -24,6 +24,7 @@
         'まだ視聴履歴はありません。<br />「QRコードをスキャン」から始めましょう。',
       'app.noResults': '該当する動画がありません。',
       'app.untitled': '(タイトル未取得)',
+      'history.playCount': '{n}回再生',
       'app.invalidUrl': 'hihaho の有効な URL を入力してください。',
       'app.confirmDeleteOne': 'この動画を履歴から削除しますか?',
       'app.confirmDeleteAll': 'すべての履歴を削除しますか?',
@@ -100,6 +101,8 @@
         'No history yet.<br />Tap "Scan QR Code" to start.',
       'app.noResults': 'No matching videos.',
       'app.untitled': '(Title unavailable)',
+      'history.playCountOne': '1 play',
+      'history.playCountMany': '{n} plays',
       'app.invalidUrl': 'Please enter a valid hihaho URL.',
       'app.confirmDeleteOne': 'Remove this video from history?',
       'app.confirmDeleteAll': 'Remove all history?',
@@ -316,6 +319,11 @@
         (existing && existing.metaTriedAt) ||
         (trashed && trashed.metaTriedAt) ||
         null,
+      // 再生回数も引き継ぐ (再スキャンでカウントがリセットされない)
+      playCount:
+        (existing && existing.playCount) ||
+        (trashed && trashed.playCount) ||
+        0,
     });
     saveHistory(filtered);
   }
@@ -337,6 +345,28 @@
     history[idx] = { ...history[idx], ...patch };
     saveHistory(history);
     return history[idx];
+  }
+
+  // 履歴のレコードに紐づいた再生回数を 1 増やす。再生開始時に呼ぶ。
+  function bumpPlayCount(uuid) {
+    const history = loadHistory();
+    const idx = history.findIndex((h) => h.uuid === uuid);
+    if (idx < 0) return;
+    const next = (history[idx].playCount || 0) + 1;
+    history[idx] = {
+      ...history[idx],
+      playCount: next,
+      lastPlayedAt: Date.now(),
+    };
+    saveHistory(history);
+  }
+
+  function formatPlayCount(n) {
+    if (getLang() === 'ja') {
+      return t('history.playCount').replace('{n}', String(n));
+    }
+    if (n === 1) return t('history.playCountOne');
+    return t('history.playCountMany').replace('{n}', String(n));
   }
 
   // ----- サムネイルキャッシュ (localStorage に dataURL で保存) -----
@@ -814,6 +844,13 @@
 
       info.appendChild(titleEl);
       info.appendChild(meta);
+
+      if (item.playCount && item.playCount > 0) {
+        const playCountEl = document.createElement('div');
+        playCountEl.className = 'history-play-count';
+        playCountEl.textContent = formatPlayCount(item.playCount);
+        info.appendChild(playCountEl);
+      }
 
       // ゴミ箱アイコンは廃止。再生ボタンのみ表示。
       const actions = document.createElement('div');
@@ -1316,6 +1353,7 @@
 
   // ----- プレーヤー -----
   async function playVideo(item) {
+    bumpPlayCount(item.uuid);
     const url = buildEmbedUrl(item);
     const iframe = document.getElementById('player-iframe');
     const loading = document.getElementById('player-loading');

@@ -768,6 +768,23 @@ button {
   color: var(--text-muted);
 }
 
+.history-play-count {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.history-play-count::before {
+  content: "play_arrow";
+  font-family: "Material Symbols Outlined";
+  font-size: 13px;
+  line-height: 1;
+  color: var(--accent);
+}
+
 .history-actions {
   display: flex;
   gap: 6px;
