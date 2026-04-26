@@ -942,6 +942,8 @@
   async function playVideo(item) {
     currentPlayingItem = item;
     updateNavButtonStates();
+    setPlayerControlsHidden(false);
+    schedulePlayerHide();
     const url = buildEmbedUrl(item);
     const iframe = document.getElementById('player-iframe');
     const loading = document.getElementById('player-loading');
@@ -1083,6 +1085,8 @@
     document.getElementById('player-error').classList.add('hidden');
     tryExitFullscreen();
     tryUnlockOrientation();
+    clearPlayerHideTimer();
+    setPlayerControlsHidden(false);
     currentPlayingItem = null;
     updateNavButtonStates();
     showScreen('home-screen');
@@ -1215,6 +1219,84 @@
     });
   }
 
+  // ----- プレーヤーバーの自動非表示 -----
+  // 一定時間操作が無いと上下バーを縮めて動画をフルスクリーン化する。
+  // 隠れている間は #player-tap-overlay が iframe 上で pointer-events を
+  // 受け取り、タップで再表示・縦スワイプで前後ナビゲーション。
+  const PLAYER_CONTROLS_HIDE_DELAY_MS = 4000;
+  let playerHideTimer = null;
+
+  function setPlayerControlsHidden(hidden) {
+    const ps = document.getElementById('player-screen');
+    if (!ps) return;
+    ps.classList.toggle('controls-hidden', hidden);
+  }
+
+  function clearPlayerHideTimer() {
+    if (playerHideTimer) {
+      clearTimeout(playerHideTimer);
+      playerHideTimer = null;
+    }
+  }
+
+  function schedulePlayerHide() {
+    clearPlayerHideTimer();
+    playerHideTimer = setTimeout(() => {
+      setPlayerControlsHidden(true);
+    }, PLAYER_CONTROLS_HIDE_DELAY_MS);
+  }
+
+  function showPlayerControls() {
+    setPlayerControlsHidden(false);
+    schedulePlayerHide();
+  }
+
+  function setupPlayerTapOverlay() {
+    const overlay = document.getElementById('player-tap-overlay');
+    if (!overlay) return;
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+    let tracking = false;
+    let pointerId = null;
+
+    overlay.addEventListener('pointerdown', (e) => {
+      if (!e.isPrimary) return;
+      startX = e.clientX;
+      startY = e.clientY;
+      startTime = Date.now();
+      tracking = true;
+      pointerId = e.pointerId;
+      try { overlay.setPointerCapture(e.pointerId); } catch {}
+    });
+
+    overlay.addEventListener('pointerup', (e) => {
+      if (!tracking || (pointerId != null && e.pointerId !== pointerId)) return;
+      tracking = false;
+      pointerId = null;
+      const dy = e.clientY - startY;
+      const dx = e.clientX - startX;
+      const dt = Date.now() - startTime;
+      const absDy = Math.abs(dy);
+      const absDx = Math.abs(dx);
+
+      // 長めの縦スワイプ → 前後ナビゲーション (バーは自動的に再表示)
+      if (absDy > 50 && absDy > absDx * 1.5 && dt < 1000) {
+        navigateBy(dy < 0 ? 1 : -1);
+        return;
+      }
+      // タップ → バーを再表示するだけ
+      if (absDy < 12 && absDx < 12 && dt < 600) {
+        showPlayerControls();
+      }
+    });
+
+    overlay.addEventListener('pointercancel', () => {
+      tracking = false;
+      pointerId = null;
+    });
+  }
+
   // ----- プレーヤー前後ナビゲーション (上下スワイプ + タップ) -----
   // バーは iframe の上下にだけ存在するので hihaho 内の hotspot や追加 iframe と
   // 干渉しない。バーをタップ、もしくはバー上で起点となる長めの縦スワイプを行うと
@@ -1241,6 +1323,8 @@
       startTime = Date.now();
       tracking = true;
       pointerId = e.pointerId;
+      // ジェスチャ中にバーが消えないようタイマーを止める
+      clearPlayerHideTimer();
       try { barEl.setPointerCapture(e.pointerId); } catch {}
     });
 
@@ -1265,10 +1349,16 @@
       }
     };
 
-    barEl.addEventListener('pointerup', finish);
+    barEl.addEventListener('pointerup', (e) => {
+      finish(e);
+      // ジェスチャ後にタイマーを再開 (navigateBy 経由なら playVideo 内で
+      // 既に schedule 済みだが冪等なので二重 schedule でも問題なし)
+      schedulePlayerHide();
+    });
     barEl.addEventListener('pointercancel', () => {
       tracking = false;
       pointerId = null;
+      schedulePlayerHide();
     });
   }
 
@@ -1302,6 +1392,7 @@
     renderHistory();
     setupSortable();
     setupPlayerSwipeNav();
+    setupPlayerTapOverlay();
     setupInstallBanner();
     setupFullscreenToggle();
     // 既存履歴のうちタイトル/サムネイルが揃っていないものを後追いで取得

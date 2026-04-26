@@ -738,8 +738,16 @@ button {
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   font-family: inherit;
-  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  transition:
+    max-height 0.3s ease,
+    min-height 0.3s ease,
+    padding 0.3s ease,
+    opacity 0.25s ease,
+    background 0.15s ease,
+    color 0.15s ease;
   width: 100%;
+  max-height: 200px;
+  overflow: hidden;
 }
 
 .swipe-nav-top {
@@ -760,6 +768,35 @@ button {
 .swipe-nav-bar.disabled {
   opacity: 0.25;
   pointer-events: none;
+}
+
+/* バーが自動的に隠れた状態 = 動画フルスクリーン。
+   バー本体は max-height 0 で潰し、iframe 領域 (flex:1) が縦方向に伸びる。 */
+.player.controls-hidden .swipe-nav-bar {
+  max-height: 0;
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* iframe 領域に重ねるタップ検出オーバーレイ。
+   バー表示中は pointer-events: none で iframe にイベントを通すので、
+   hihaho の hotspot や追加 iframe との干渉ゼロ。
+   バーが隠れている間だけ pointer-events: auto に切り替わって、
+   タップでバーを再表示、縦スワイプで前後動画にナビゲートする。 */
+.player-tap-overlay {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  z-index: 2;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.player.controls-hidden .player-tap-overlay {
+  pointer-events: auto;
 }
 
 .player-container {
