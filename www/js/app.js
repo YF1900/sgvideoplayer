@@ -937,13 +937,71 @@
     document.addEventListener('fullscreenchange', updatePlayerScale);
     document.addEventListener('webkitfullscreenchange', updatePlayerScale);
 
-    // Service Worker 登録
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js').catch(() => {});
-      });
-    }
+    // Service Worker 登録 + 更新ボタンの配線
+    setupServiceWorkerAndUpdate();
   });
+
+  // ----- Service Worker / 更新 -----
+  let updating = false;
+
+  function setupServiceWorkerAndUpdate() {
+    const updateBtn = document.getElementById('update-btn');
+    if (updateBtn) {
+      updateBtn.addEventListener('click', () => performUpdate(updateBtn));
+    }
+
+    if (!('serviceWorker' in navigator)) {
+      // SW 未対応なら素のリロードに退化
+      return;
+    }
+
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').catch(() => {});
+
+      // controllerchange (新 SW が claim したタイミング) で 1 回だけ再読込
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloaded) return;
+        reloaded = true;
+        window.location.reload();
+      });
+    });
+  }
+
+  async function performUpdate(btn) {
+    if (updating) return;
+    updating = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('spinning');
+    }
+    try {
+      // 既存 SW を最新にチェック (新 SW があればここでインストールされる)
+      if ('serviceWorker' in navigator) {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.update().catch(() => {})));
+          // waiting 状態の SW があれば skipWaiting を依頼
+          for (const r of regs) {
+            if (r.waiting) {
+              r.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+          }
+        } catch {}
+      }
+
+      // 既存キャッシュを破棄して、次回ナビゲーションでネットワークから取り直す
+      if (window.caches) {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
+        } catch {}
+      }
+    } finally {
+      // controllerchange でリロードされなかった場合に備え、最終的に必ず再読込
+      window.location.reload();
+    }
+  }
 
   // PWA インストールプロンプトをキャプチャ
   window.addEventListener('beforeinstallprompt', (e) => {

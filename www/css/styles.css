@@ -108,6 +108,15 @@ button {
   background: var(--bg-elev-2);
 }
 
+.header-icon-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.header-icon-btn.spinning .material-symbols-outlined {
+  animation: spin 0.9s linear infinite;
+}
+
 .install-banner {
   display: flex;
   align-items: center;

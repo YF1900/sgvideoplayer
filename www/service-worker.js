@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hihaho-qr-v6';
+const CACHE_NAME = 'hihaho-qr-v7';
 const FONT_CACHE_NAME = 'hihaho-qr-fonts-v1';
 const ASSETS = [
   './',
@@ -16,6 +16,13 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).catch(() => {})
   );
   self.skipWaiting();
+});
+
+// クライアント (アプリ画面) からの SKIP_WAITING メッセージを受けて即時アクティブ化
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
