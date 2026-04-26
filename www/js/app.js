@@ -496,8 +496,12 @@
     scannerStarting = true;
     try {
       clearScanError();
-      // ユーザー操作直後に全画面化してブラウザのURLバーを隠す
-      tryEnterFullscreen(document.documentElement);
+      // PWA standalone (or Capacitor native) はすでに全画面なので
+      // requestFullscreen を呼ぶとレイアウトが不安定になることがある。
+      // ブラウザモードのときだけ URL バーを隠す目的で呼ぶ。
+      if (!isStandalone() && !isCapacitorNative()) {
+        tryEnterFullscreen(document.documentElement);
+      }
       showScreen('scan-screen');
       scanLocked = false;
 
@@ -515,10 +519,21 @@
       // style / 残留子ノードを完全に取り除く。
       ensureFreshQrReader();
 
-      // 画面切替直後はレイアウトが未確定で qr-reader の寸法が 0 のまま
-      // ライブラリが初期化されるとビデオ領域が後から伸びず黒い帯が残る。
-      // 次フレームを待ってから初期化することで採寸を正確化する。
+      // 画面切替直後は flex の採寸が確定していないことがあり、ライブラリが
+      // qr-reader の寸法を 0 と見なすと video が縮んだまま固定化されて
+      // 下半分が黒く残る。2 フレーム待機 + 強制 reflow で確実に採寸を確定。
       await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      const readerEl = document.getElementById('qr-reader');
+      if (readerEl) {
+        // offsetHeight 読み取りで強制レイアウト
+        // eslint-disable-next-line no-unused-expressions
+        readerEl.offsetHeight;
+        // それでもまだ高さが取れていなければマイクロタスクで一拍待つ
+        if (readerEl.offsetHeight < 100) {
+          await new Promise((resolve) => setTimeout(resolve, 80));
+        }
+      }
 
       qrScanner = new Html5Qrcode('qr-reader', { verbose: false });
 

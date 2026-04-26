@@ -548,12 +548,42 @@ button {
   position: relative;
   overflow: hidden;
   min-height: 320px;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+/* html5-qrcode が挿入する内部ラッパー (div) は、撮影解像度に合わせた
+   ピクセル指定の width/height をインラインで持つことがある。
+   それをすべて上書きしてコンテナ全体を埋めさせる。 */
+.qr-reader > div {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .qr-reader video {
   width: 100% !important;
   height: 100% !important;
-  object-fit: cover;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: cover !important;
+}
+
+/* このアプリで使用しないライブラリ標準 UI を非表示 */
+#qr-reader__dashboard,
+#qr-reader__camera_selection,
+#qr-reader__filescan_input,
+#qr-reader__file_scan_button,
+#qr-reader__header_message,
+#qr-reader__status_span {
+  display: none !important;
 }
 
 .scan-hint {
