@@ -217,7 +217,7 @@
       <p class="qr-modal-hint" data-i18n="qr.exportHint">
         もう一台のアプリで QR スキャンすると履歴が取り込まれます。
       </p>
-      <canvas id="qr-export-canvas" class="qr-modal-canvas" aria-label="QR code"></canvas>
+      <img id="qr-export-image" class="qr-modal-canvas" alt="QR code" />
       <p id="qr-export-count" class="qr-modal-count"></p>
       <button id="qr-export-close" type="button" class="qr-modal-close" data-i18n="qr.close">閉じる</button>
     </div>
@@ -349,7 +349,7 @@
 
   <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
-  <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

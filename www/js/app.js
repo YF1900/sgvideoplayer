@@ -662,7 +662,7 @@
     return uuids;
   }
 
-  async function exportHistoryAsQr() {
+  function exportHistoryAsQr() {
     const history = loadHistory();
     if (history.length === 0) {
       alert(t('qr.exportEmpty'));
@@ -674,30 +674,33 @@
       );
       return;
     }
-    if (typeof QRCode === 'undefined') {
+    if (typeof qrcode !== 'function') {
       alert(t('qr.exportFailed'));
       return;
     }
 
     const payload = buildQrPayload(history);
-    const canvas = document.getElementById('qr-export-canvas');
+    const imgEl = document.getElementById('qr-export-image');
     const countEl = document.getElementById('qr-export-count');
-    if (!canvas) return;
+    if (!imgEl) return;
 
+    let dataUrl;
     try {
-      // 画面表示用なので誤り訂正は L (容量を最大化)。alphanumeric モードに
-      // 自動判定させるため uppercase hex のみで構成している。
-      await QRCode.toCanvas(canvas, payload, {
-        errorCorrectionLevel: 'L',
-        margin: 2,
-        scale: 6,
-        color: { dark: '#000000', light: '#ffffff' },
-      });
+      // typeNumber 0 = ライブラリが必要な QR バージョンを自動選択。
+      // L = 誤り訂正レベル L (画面表示用なので容量を最大化)。
+      // payload は uppercase hex + ':' のみなので alphanumeric モードに収まる。
+      const qr = qrcode(0, 'L');
+      qr.addData(payload, 'Alphanumeric');
+      qr.make();
+      // セルサイズ 6px、外周マージン 4 セル → 画面表示で扱いやすい大きさ
+      dataUrl = qr.createDataURL(6, 4);
     } catch (err) {
       console.error('qr generation failed', err);
       alert(t('qr.exportFailed'));
       return;
     }
+
+    imgEl.src = dataUrl;
 
     if (countEl) {
       countEl.textContent = t('qr.exportItemCount').replace(
@@ -2221,8 +2224,8 @@
     // QRコード共有
     const qrExportBtn = document.getElementById('menu-qr-export');
     if (qrExportBtn) {
-      qrExportBtn.addEventListener('click', async () => {
-        await exportHistoryAsQr();
+      qrExportBtn.addEventListener('click', () => {
+        exportHistoryAsQr();
         // メニューはモーダル裏で閉じる
         closeMenu();
       });
