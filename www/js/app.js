@@ -8,6 +8,9 @@
   const SORT_KEY = 'hihaho-qr-sort';
   const SORT_MODES = ['date_desc', 'date_asc', 'name_asc', 'name_desc', 'custom'];
   const DEFAULT_SORT = 'date_desc';
+  const CLOSE_POS_KEY = 'hihaho-qr-close-pos';
+  const CLOSE_POSITIONS = ['top-right', 'top-left', 'bottom-right', 'bottom-left'];
+  const DEFAULT_CLOSE_POS = 'top-right';
   const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 日
 
   // ----- 国際化 -----
@@ -39,6 +42,11 @@
       'sort.nameAsc': '名前 (A→Z)',
       'sort.nameDesc': '名前 (Z→A)',
       'sort.custom': 'カスタム順 (ドラッグ)',
+      'menu.closeButtonPos': '動画を閉じるボタンの位置',
+      'pos.topLeft': '左上',
+      'pos.topRight': '右上',
+      'pos.bottomLeft': '左下',
+      'pos.bottomRight': '右下',
       'menu.trash': 'ゴミ箱',
       'trash.title': 'ゴミ箱',
       'trash.empty': 'ゴミ箱は空です。',
@@ -117,6 +125,11 @@
       'sort.nameAsc': 'Name (A→Z)',
       'sort.nameDesc': 'Name (Z→A)',
       'sort.custom': 'Custom (drag)',
+      'menu.closeButtonPos': 'Close button position',
+      'pos.topLeft': 'Top left',
+      'pos.topRight': 'Top right',
+      'pos.bottomLeft': 'Bottom left',
+      'pos.bottomRight': 'Bottom right',
       'menu.trash': 'Trash',
       'trash.title': 'Trash',
       'trash.empty': 'Trash is empty.',
@@ -1707,6 +1720,33 @@
     });
   }
 
+  // ----- 動画を閉じるボタンの位置 -----
+  function getClosePos() {
+    const stored = localStorage.getItem(CLOSE_POS_KEY);
+    return CLOSE_POSITIONS.includes(stored) ? stored : DEFAULT_CLOSE_POS;
+  }
+
+  function applyClosePos() {
+    const btn = document.getElementById('player-back');
+    if (!btn) return;
+    CLOSE_POSITIONS.forEach((p) => btn.classList.remove(`pos-${p}`));
+    btn.classList.add(`pos-${getClosePos()}`);
+  }
+
+  function setClosePos(pos) {
+    if (!CLOSE_POSITIONS.includes(pos)) return;
+    localStorage.setItem(CLOSE_POS_KEY, pos);
+    applyClosePos();
+    refreshClosePosActive();
+  }
+
+  function refreshClosePosActive() {
+    const current = getClosePos();
+    document.querySelectorAll('.menu-pos-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.pos === current);
+    });
+  }
+
   function closeMenu() {
     const overlay = document.getElementById('menu-overlay');
     if (!overlay) return;
@@ -1731,6 +1771,7 @@
       overlay.setAttribute('aria-hidden', 'false');
       refreshLangActive();
       refreshSortActive();
+      refreshClosePosActive();
       refreshTrashUi();
     }
 
@@ -1759,6 +1800,14 @@
           setSortMode(mode);
           closeMenu();
         }
+      });
+    });
+
+    // 閉じるボタン位置の選択 (メニューは閉じずにチェックマーク更新で即フィードバック)
+    document.querySelectorAll('.menu-pos-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const pos = btn.dataset.pos;
+        if (pos) setClosePos(pos);
       });
     });
 
@@ -1809,6 +1858,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     applyTranslations();
+    applyClosePos();
     autoPurgeTrash();
     setupMenu();
     renderHistory();

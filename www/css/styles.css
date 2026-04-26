@@ -338,6 +338,21 @@ button {
   visibility: visible;
 }
 
+/* 位置選択ボタン: [方向アイコン] + [ラベル] + [チェック] の 3 要素を横並び */
+.menu-pos-btn {
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.menu-pos-btn > .material-symbols-outlined:not(.menu-option-check) {
+  font-size: 20px;
+  color: var(--text-muted);
+}
+
+.menu-pos-btn .menu-option-check {
+  margin-left: auto;
+}
+
 .menu-section-hint {
   font-size: 12px;
   color: var(--text-muted);
@@ -927,13 +942,32 @@ button {
 
 .back-btn.floating {
   position: fixed;
-  top: calc(var(--safe-top) + 12px);
-  right: calc(var(--safe-right) + 12px);
   z-index: 20;
   background: rgba(0, 0, 0, 0.6);
   width: 44px;
   height: 44px;
   font-size: 20px;
+}
+
+/* 動画を閉じるボタンの位置 (メニューから 4 隅を選択可能) */
+.back-btn.floating.pos-top-right {
+  top: calc(var(--safe-top) + 12px);
+  right: calc(var(--safe-right) + 12px);
+}
+
+.back-btn.floating.pos-top-left {
+  top: calc(var(--safe-top) + 12px);
+  left: calc(var(--safe-left) + 12px);
+}
+
+.back-btn.floating.pos-bottom-right {
+  bottom: calc(var(--safe-bottom) + 12px);
+  right: calc(var(--safe-right) + 12px);
+}
+
+.back-btn.floating.pos-bottom-left {
+  bottom: calc(var(--safe-bottom) + 12px);
+  left: calc(var(--safe-left) + 12px);
 }
 
 .qr-reader {

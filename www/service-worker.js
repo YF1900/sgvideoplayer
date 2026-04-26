@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hihaho-qr-v23';
+const CACHE_NAME = 'hihaho-qr-v24';
 const FONT_CACHE_NAME = 'hihaho-qr-fonts-v1';
 const ASSETS = [
   './',

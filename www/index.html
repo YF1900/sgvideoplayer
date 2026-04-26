@@ -124,7 +124,7 @@
 
   <!-- プレーヤー画面 -->
   <section id="player-screen" class="screen player">
-    <button id="player-back" class="back-btn floating" type="button" aria-label="閉じる" data-i18n-aria="aria.close">
+    <button id="player-back" class="back-btn floating pos-top-right" type="button" aria-label="閉じる" data-i18n-aria="aria.close">
       <span class="material-symbols-outlined" aria-hidden="true">close</span>
     </button>
     <div id="player-loading" class="player-loading">
@@ -256,6 +256,32 @@
           </button>
           <button class="menu-option-btn menu-sort-btn" type="button" data-sort="custom">
             <span data-i18n="sort.custom">カスタム順 (ドラッグ)</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="menu-section">
+        <h3 data-i18n="menu.closeButtonPos">動画を閉じるボタンの位置</h3>
+        <div class="menu-options">
+          <button class="menu-option-btn menu-pos-btn" type="button" data-pos="top-left">
+            <span class="material-symbols-outlined" aria-hidden="true">north_west</span>
+            <span data-i18n="pos.topLeft">左上</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
+          </button>
+          <button class="menu-option-btn menu-pos-btn" type="button" data-pos="top-right">
+            <span class="material-symbols-outlined" aria-hidden="true">north_east</span>
+            <span data-i18n="pos.topRight">右上</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
+          </button>
+          <button class="menu-option-btn menu-pos-btn" type="button" data-pos="bottom-left">
+            <span class="material-symbols-outlined" aria-hidden="true">south_west</span>
+            <span data-i18n="pos.bottomLeft">左下</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
+          </button>
+          <button class="menu-option-btn menu-pos-btn" type="button" data-pos="bottom-right">
+            <span class="material-symbols-outlined" aria-hidden="true">south_east</span>
+            <span data-i18n="pos.bottomRight">右下</span>
             <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
           </button>
         </div>
