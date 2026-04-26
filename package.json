@@ -1,0 +1,22 @@
+{
+  "name": "sgvideoplayer",
+  "version": "1.0.0",
+  "description": "hihaho の QRコードを読み込んで動画を全画面再生する PWA / ネイティブアプリ",
+  "private": true,
+  "scripts": {
+    "serve": "npx --yes serve www -l 8080",
+    "cap:init:ios": "npx cap add ios && npx cap sync ios",
+    "cap:init:android": "npx cap add android && npx cap sync android",
+    "cap:sync": "npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}
