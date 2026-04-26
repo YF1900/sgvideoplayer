@@ -10,8 +10,8 @@
     ja: {
       'app.title': 'QR動画',
       'app.scan': 'QRコードをスキャン',
-      'app.manualInput': 'URLを直接入力',
-      'app.urlPlaceholder': 'https://player.hihaho.com/...',
+      'app.manualInput': 'URL または UUID を直接入力',
+      'app.urlPlaceholder': 'URL または UUID',
       'app.play': '再生',
       'app.history': '視聴履歴',
       'app.clearAll': 'すべて削除',
@@ -59,8 +59,8 @@
     en: {
       'app.title': 'QR Video',
       'app.scan': 'Scan QR Code',
-      'app.manualInput': 'Enter URL directly',
-      'app.urlPlaceholder': 'https://player.hihaho.com/...',
+      'app.manualInput': 'Enter URL or UUID directly',
+      'app.urlPlaceholder': 'URL or UUID',
       'app.play': 'Play',
       'app.history': 'History',
       'app.clearAll': 'Clear all',
@@ -168,22 +168,36 @@
   //   https://player.hihaho.com/<UUID>
   //   https://player.hihaho.com/embed/<UUID>
   //   https://player.hihaho.com/embed/<UUID>?v=<VERSION>
+  //   <UUID>                     ← URL 抜きの単体形式も許容
+  //   <UUID>?v=<VERSION>
   // クエリ文字列に v 以外のパラメータが含まれていてもよい。
   const HIHAHO_REGEX =
     /^https?:\/\/player\.hihaho\.com\/(?:embed\/)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[/?#].*)?$/i;
+  const UUID_ONLY_REGEX =
+    /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\?(.*))?$/i;
 
   function parseHihahoUrl(input) {
     if (!input) return null;
-    const url = String(input).trim();
-    const match = url.match(HIHAHO_REGEX);
-    if (!match) return null;
-    const uuid = match[1].toLowerCase();
+    const trimmed = String(input).trim();
 
-    // バージョン (?v=...) はクエリから個別に抽出
+    let uuid = null;
+    let queryString = '';
+
+    const urlMatch = trimmed.match(HIHAHO_REGEX);
+    if (urlMatch) {
+      uuid = urlMatch[1].toLowerCase();
+      const qIdx = trimmed.indexOf('?');
+      if (qIdx >= 0) queryString = trimmed.slice(qIdx + 1);
+    } else {
+      const uuidMatch = trimmed.match(UUID_ONLY_REGEX);
+      if (!uuidMatch) return null;
+      uuid = uuidMatch[1].toLowerCase();
+      queryString = uuidMatch[2] || '';
+    }
+
     let version = null;
-    const qIdx = url.indexOf('?');
-    if (qIdx >= 0) {
-      const params = new URLSearchParams(url.slice(qIdx + 1));
+    if (queryString) {
+      const params = new URLSearchParams(queryString);
       const v = params.get('v');
       if (v && /^\d+$/.test(v)) version = v;
     }
