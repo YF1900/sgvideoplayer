@@ -520,8 +520,10 @@
       ensureFreshQrReader();
 
       // 画面切替直後は flex の採寸が確定していないことがあり、ライブラリが
-      // qr-reader の寸法を 0 と見なすと video が縮んだまま固定化されて
-      // 下半分が黒く残る。2 フレーム待機 + 強制 reflow で確実に採寸を確定。
+      // qr-reader の寸法を 0 と見なすと video が縮んだまま固定化される。
+      // また iOS Safari は前回 getUserMedia から短時間で再取得するとカメラ
+      // ハードウェアが解放されておらずフリーズしたストリームを返すことがある。
+      // 2 フレーム待機 + 強制 reflow + 250ms スリープで採寸とカメラ解放を待つ。
       await new Promise((resolve) => requestAnimationFrame(() => resolve()));
       await new Promise((resolve) => requestAnimationFrame(() => resolve()));
       const readerEl = document.getElementById('qr-reader');
@@ -529,11 +531,8 @@
         // offsetHeight 読み取りで強制レイアウト
         // eslint-disable-next-line no-unused-expressions
         readerEl.offsetHeight;
-        // それでもまだ高さが取れていなければマイクロタスクで一拍待つ
-        if (readerEl.offsetHeight < 100) {
-          await new Promise((resolve) => setTimeout(resolve, 80));
-        }
       }
+      await new Promise((resolve) => setTimeout(resolve, 250));
 
       qrScanner = new Html5Qrcode('qr-reader', { verbose: false });
 

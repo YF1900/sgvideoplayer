@@ -548,31 +548,31 @@ button {
   position: relative;
   overflow: hidden;
   min-height: 320px;
-  display: flex;
-  align-items: stretch;
-  justify-content: stretch;
 }
 
-/* html5-qrcode が挿入する内部ラッパー (div) は、撮影解像度に合わせた
-   ピクセル指定の width/height をインラインで持つことがある。
-   それをすべて上書きしてコンテナ全体を埋めさせる。 */
+/* html5-qrcode はピクセル単位の inline サイズを内側 div に書き込む。
+   絶対配置で qr-reader 全体に張り付けることで、ライブラリ側の採寸結果に
+   関わらず常にコンテナ全体を覆わせる。 */
 .qr-reader > div {
-  width: 100% !important;
-  height: 100% !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
   margin: 0 !important;
   padding: 0 !important;
   border: 0 !important;
-  position: relative !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  background: #000 !important;
 }
 
 .qr-reader video {
+  position: absolute !important;
+  inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
   object-fit: cover !important;
 }
 
