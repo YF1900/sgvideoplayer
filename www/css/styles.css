@@ -1142,21 +1142,6 @@ button {
   background: #000;
 }
 
-/* デスクトップ・大型タブレット等で hihaho プレーヤーが内部レイアウト判断で
-   動画を小さく描画する場合があるため、iframe をモバイル相当 (640×360) の
-   固定設計サイズで配置し、transform: scale() で実画面サイズに拡大する。
-   こうすることで hihaho 側が「動画をビューポートにフィット」モードを取るので、
-   結果的に動画が画面いっぱいに描画される。 */
-@media (min-width: 768px) and (min-height: 480px) {
-  #player-iframe {
-    width: 640px;
-    height: 360px;
-    flex-shrink: 0;
-    transform: scale(var(--player-scale, 1));
-    transform-origin: center center;
-  }
-}
-
 .player-loading {
   position: absolute;
   inset: 0;

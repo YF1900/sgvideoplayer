@@ -1733,35 +1733,6 @@
     }
   }
 
-  // ----- プレーヤー スケーリング -----
-  // CSS のメディアクエリで iframe を 1280×720 固定にしている画面サイズでは、
-  // window の実サイズに合わせて transform: scale() の倍率を計算する。
-  // hihaho の埋め込みプレーヤーは「デスクトップ的なビューポート」だと
-  // 動画要素を素材解像度のまま中央表示するため、Android の大型タブレットや
-  // PC ブラウザで小さく見える。設計サイズをモバイル幅 (640×360) にすることで
-  // hihaho 側に「動画をビューポート全体にフィット」モードを取らせ、
-  // そのうえで transform: scale() で実画面サイズへ拡大する。
-  const PLAYER_DESIGN_W = 640;
-  const PLAYER_DESIGN_H = 360;
-  // 設計サイズを下げたのに合わせて scale 適用の閾値も少し下げる
-  const PLAYER_SCALE_MIN_W = 768;
-  const PLAYER_SCALE_MIN_H = 480;
-
-  function updatePlayerScale() {
-    const container = document.getElementById('player-container');
-    if (!container) return;
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    if (w === 0 || h === 0) return;
-    if (w < PLAYER_SCALE_MIN_W || h < PLAYER_SCALE_MIN_H) {
-      // メディアクエリ非適用 → iframe は 100%×100% なのでスケール不要
-      document.documentElement.style.removeProperty('--player-scale');
-      return;
-    }
-    const scale = Math.min(w / PLAYER_DESIGN_W, h / PLAYER_DESIGN_H);
-    document.documentElement.style.setProperty('--player-scale', String(scale));
-  }
-
   // ----- プレーヤー -----
   async function playVideo(item) {
     bumpPlayCount(item.uuid);
@@ -1797,12 +1768,11 @@
     requestAnimationFrame(() => {
       // iframe 自身を Fullscreen API でフルスクリーン化すると hihaho 内部の
       // ネスト iframe / 双方向コンテンツとも競合し、X 閉じるボタンも隠れて
-      // しまうため採用しない。代わりに親文書側の fullscreen と、CSS の
-      // transform: scale (#player-iframe を 640×360 設計でスケール) で対処。
+      // しまうため採用しない。親文書側を fullscreen にして URL バーだけ隠し、
+      // iframe は素直に 100%×100% で hihaho の自然なレイアウトに任せる。
       tryEnterFullscreen(document.documentElement);
       tryEnterFullscreen(container);
       tryLockOrientation();
-      updatePlayerScale();
     });
   }
 
@@ -2417,12 +2387,6 @@
         showScreen('home-screen');
       }
     });
-
-    // プレーヤーの拡大率をウィンドウサイズに応じて更新
-    updatePlayerScale();
-    window.addEventListener('resize', updatePlayerScale);
-    document.addEventListener('fullscreenchange', updatePlayerScale);
-    document.addEventListener('webkitfullscreenchange', updatePlayerScale);
 
     // Service Worker 登録 + 更新ボタンの配線
     setupServiceWorkerAndUpdate();
