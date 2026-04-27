@@ -1764,14 +1764,13 @@
     iframe.src = url;
     showScreen('player-screen');
 
-    const container = document.getElementById('player-container');
     requestAnimationFrame(() => {
-      // iframe 自身を Fullscreen API でフルスクリーン化すると hihaho 内部の
-      // ネスト iframe / 双方向コンテンツとも競合し、X 閉じるボタンも隠れて
-      // しまうため採用しない。親文書側を fullscreen にして URL バーだけ隠し、
-      // iframe は素直に 100%×100% で hihaho の自然なレイアウトに任せる。
-      tryEnterFullscreen(document.documentElement);
-      tryEnterFullscreen(container);
+      // 自前で fullscreen を呼ぶと、一部の Android タブレット (戻るジェスチャ
+      // が利かない大型ディスプレイ等) で fullscreen を解除する手段が無くなり
+      // ブラウザ強制終了が必要になるという報告があったため、playVideo から
+      // requestFullscreen 系の呼び出しは行わない。
+      // PWA standalone であれば URL バーは元から無く、iframe は 100%×100% で
+      // 表示領域いっぱいに広がる。動画の最終レイアウトは hihaho 側に任せる。
       tryLockOrientation();
     });
   }
