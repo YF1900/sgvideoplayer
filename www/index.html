@@ -142,16 +142,14 @@
       </div>
     </div>
     <div id="player-container" class="player-container">
-      <div id="player-zoom" class="player-zoom">
-        <iframe
-          id="player-iframe"
-          title="hihaho video"
-          allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; gyroscope"
-          allowfullscreen
-          webkitallowfullscreen
-          mozallowfullscreen
-        ></iframe>
-      </div>
+      <iframe
+        id="player-iframe"
+        title="hihaho video"
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; gyroscope"
+        allowfullscreen
+        webkitallowfullscreen
+        mozallowfullscreen
+      ></iframe>
     </div>
   </section>
 
@@ -298,6 +296,19 @@
           <button class="menu-option-btn menu-pos-btn" type="button" data-pos="bottom-right">
             <span class="material-symbols-outlined" aria-hidden="true">south_east</span>
             <span data-i18n="pos.bottomRight">右下</span>
+            <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="menu-section">
+        <h3 data-i18n="menu.player">プレーヤー</h3>
+        <p class="menu-section-hint" data-i18n="menu.forceFullscreenHint">
+          オフ: コントロールバーは画面下端 / オン: 動画は最大化されるがコントロール位置は機種依存
+        </p>
+        <div class="menu-options">
+          <button id="menu-force-full" class="menu-option-btn" type="button">
+            <span data-i18n="menu.forceFullscreen">動画を画面いっぱいに表示</span>
             <span class="material-symbols-outlined menu-option-check" aria-hidden="true">check</span>
           </button>
         </div>

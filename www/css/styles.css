@@ -1135,40 +1135,37 @@ button {
   overflow: hidden;
 }
 
-.player-zoom {
-  width: 100%;
-  height: 100%;
-  display: block;
-  position: relative;
-}
-
 #player-iframe {
   width: 100%;
   height: 100%;
   border: 0;
   background: #000;
-  display: block;
 }
 
-/* 大きめの横画面 (32" タブレット / 大型 PC モニタ等) では hihaho が
-   #playerContainer を 50% 幅にし、動画コンテナを縦中央に配置するため、
-   コントロールバーが画面の真ん中あたりに浮いてしまう。
-   - .player-zoom (iframe を包むラッパー) を 16:9・1199×674 の固定設計サイズに
-     してから transform: scale で実画面サイズへ拡大する。
-   - iframe 自身のレイアウトは 100%×100% (= 1199×674) で hihaho に渡るため、
-     hihaho の `@media (max-width: 1200px)` モバイル fill ルールが発火し、
-     VideoContainer が iframe 全体を埋める = レターボックス無し。
-   - 親 .player-container の align-items: flex-end + transform-origin: bottom
-     により、ラッパー下端 = コントロールバー = 画面最下端 が一致する。
-   - 16:9 ビデオ × 16:9 ラッパーなのでアスペクト崩れなし、画面いっぱいに表示。 */
+/* 大きめの横画面ではコントロールバーを画面最下端に揃えるため、
+   iframe 幅を hihaho のモバイル fill 境界 (1200px) 直下に絞り込み、
+   16:9 アスペクトに固定する。親の align-items: flex-end と組み合わせて
+   iframe 下端 = コントロールバー = 画面下端 が一致する。
+   "force-fullscreen" モードがオンのときはこのルールを上書きして、
+   iframe を viewport 全体に広げる (#player-screen.force-fullscreen 参照)。 */
 @media (orientation: landscape) and (min-width: 1024px) {
-  .player-zoom {
-    width: 1199px;
-    height: 674px;
-    flex-shrink: 0;
-    transform: scale(var(--player-scale, 1));
-    transform-origin: bottom center;
+  #player-screen:not(.force-fullscreen) #player-iframe {
+    max-width: 1199px;
+    aspect-ratio: 16 / 9;
+    height: auto;
+    max-height: 100%;
   }
+}
+
+/* 「画面いっぱい再生」モード:
+   iframe を実画面サイズいっぱいに広げ hihaho の自然レイアウトに任せる。
+   コントロールバーが画面最下端には来なくなるが、動画自体は最大化される。 */
+#player-screen.force-fullscreen #player-iframe {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  max-height: none;
 }
 
 .player-loading {
