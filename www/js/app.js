@@ -1733,6 +1733,28 @@
     }
   }
 
+  // ----- プレーヤー: 画面いっぱい拡大 (transform: scale on wrapper) -----
+  // CSS のメディアクエリで .player-zoom を 1199x674 (16:9, hihaho の
+  // モバイル fill モード) に固定しているとき、ウィンドウサイズに合わせて
+  // ラッパーを transform: scale で実画面サイズまで拡大する。
+  const PLAYER_DESIGN_W = 1199;
+  const PLAYER_DESIGN_H = 674;
+
+  function updatePlayerScale() {
+    const container = document.getElementById('player-container');
+    if (!container) return;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (w === 0 || h === 0) return;
+    // landscape and min-width:1024px (CSS のメディアクエリ条件と一致させる)
+    if (w < 1024 || w <= h) {
+      document.documentElement.style.removeProperty('--player-scale');
+      return;
+    }
+    const scale = Math.min(w / PLAYER_DESIGN_W, h / PLAYER_DESIGN_H);
+    document.documentElement.style.setProperty('--player-scale', String(scale));
+  }
+
   // ----- プレーヤー -----
   async function playVideo(item) {
     bumpPlayCount(item.uuid);
@@ -1765,13 +1787,9 @@
     showScreen('player-screen');
 
     requestAnimationFrame(() => {
-      // 自前で fullscreen を呼ぶと、一部の Android タブレット (戻るジェスチャ
-      // が利かない大型ディスプレイ等) で fullscreen を解除する手段が無くなり
-      // ブラウザ強制終了が必要になるという報告があったため、playVideo から
-      // requestFullscreen 系の呼び出しは行わない。
-      // PWA standalone であれば URL バーは元から無く、iframe は 100%×100% で
-      // 表示領域いっぱいに広がる。動画の最終レイアウトは hihaho 側に任せる。
+      // 自前で fullscreen は呼ばない (Android 大画面で解除できなくなる事象)。
       tryLockOrientation();
+      updatePlayerScale();
     });
   }
 
@@ -2386,6 +2404,11 @@
         showScreen('home-screen');
       }
     });
+
+    // プレーヤーの拡大率をウィンドウサイズに応じて更新
+    updatePlayerScale();
+    window.addEventListener('resize', updatePlayerScale);
+    window.addEventListener('orientationchange', updatePlayerScale);
 
     // Service Worker 登録 + 更新ボタンの配線
     setupServiceWorkerAndUpdate();
