@@ -627,7 +627,9 @@
   // タイトルや再生回数は転送せず、UUID のみ。受信側で backfill によって
   // タイトル/サムネイルを再取得する。
   const QR_EXPORT_MARKER = 'QRVHIST1:';
-  const QR_EXPORT_MAX_ITEMS = 100;
+  // 上限は ECC M で v32 (145 モジュール) に収まる程度に絞り、生成 QR を
+  // カメラデコード可能な密度に保つ。これ以上のサイズは JSON ファイル書き出しへ。
+  const QR_EXPORT_MAX_ITEMS = 50;
 
   function buildQrPayload(items) {
     let s = QR_EXPORT_MARKER;
@@ -687,13 +689,15 @@
     let dataUrl;
     try {
       // typeNumber 0 = ライブラリが必要な QR バージョンを自動選択。
-      // L = 誤り訂正レベル L (画面表示用なので容量を最大化)。
+      // M = 誤り訂正レベル M (Safari のカメラデコードを安定させるため
+      // L から引き上げ。容量は 50 件 + 9 バイトプレフィックスで十分収まる)。
       // payload は uppercase hex + ':' のみなので alphanumeric モードに収まる。
-      const qr = qrcode(0, 'L');
+      const qr = qrcode(0, 'M');
       qr.addData(payload, 'Alphanumeric');
       qr.make();
-      // セルサイズ 6px、外周マージン 4 セル → 画面表示で扱いやすい大きさ
-      dataUrl = qr.createDataURL(6, 4);
+      // セルサイズ 8px、外周マージン 4 セル → 大きめに描画して
+      // CSS でリサイズしても 1 モジュールあたりのピクセル数を確保する
+      dataUrl = qr.createDataURL(8, 4);
     } catch (err) {
       console.error('qr generation failed', err);
       alert(t('qr.exportFailed'));
@@ -1633,11 +1637,13 @@
         return;
       }
 
-      // QR の検出は中央正方領域だけで十分。サンプリング解像度を抑えて負荷軽減。
+      // QR の検出は中央正方領域だけで十分。
+      // 履歴インポート用の高密度 QR (v30 前後) を Safari でも安定して
+      // デコードできるよう、サンプリング解像度を 720px まで上げる。
       const cropSize = Math.min(vw, vh);
       const cropX = (vw - cropSize) / 2;
       const cropY = (vh - cropSize) / 2;
-      const targetSize = Math.min(cropSize, 480);
+      const targetSize = Math.min(cropSize, 720);
 
       if (scanCanvas.width !== targetSize) scanCanvas.width = targetSize;
       if (scanCanvas.height !== targetSize) scanCanvas.height = targetSize;

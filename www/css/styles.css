@@ -229,9 +229,9 @@ button {
   position: relative;
   background: var(--bg-elev);
   border-radius: 18px;
-  padding: 22px;
+  padding: 18px;
   width: 100%;
-  max-width: 360px;
+  max-width: min(95vw, 480px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -259,12 +259,16 @@ button {
 
 .qr-modal-canvas {
   width: 100%;
-  max-width: 280px;
+  max-width: 100%;
   height: auto;
   background: #fff;
   border-radius: 8px;
   padding: 10px;
-  box-sizing: content-box;
+  box-sizing: border-box;
+  /* QR モジュールが滑らかに補間されると Safari のデコードが失敗しやすいので、
+     最近傍補間でブロックの輪郭をシャープに保つ */
+  image-rendering: pixelated;
+  image-rendering: -webkit-optimize-contrast;
 }
 
 .qr-modal-count {
