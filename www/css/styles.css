@@ -1126,7 +1126,7 @@ button {
   position: relative;
   flex: 1;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   width: 100vw;
   height: 100vh;
@@ -1140,32 +1140,6 @@ button {
   height: 100%;
   border: 0;
   background: #000;
-}
-
-/* 大きめの横画面ではコントロールバーを画面最下端に揃えるため、
-   iframe 幅を hihaho のモバイル fill 境界 (1200px) 直下に絞り込み、
-   16:9 アスペクトに固定する。親の align-items: flex-end と組み合わせて
-   iframe 下端 = コントロールバー = 画面下端 が一致する。
-   "force-fullscreen" モードがオンのときはこのルールを上書きして、
-   iframe を viewport 全体に広げる (#player-screen.force-fullscreen 参照)。 */
-@media (orientation: landscape) and (min-width: 1024px) {
-  #player-screen:not(.force-fullscreen) #player-iframe {
-    max-width: 1199px;
-    aspect-ratio: 16 / 9;
-    height: auto;
-    max-height: 100%;
-  }
-}
-
-/* 「画面いっぱい再生」モード:
-   iframe を実画面サイズいっぱいに広げ hihaho の自然レイアウトに任せる。
-   コントロールバーが画面最下端には来なくなるが、動画自体は最大化される。 */
-#player-screen.force-fullscreen #player-iframe {
-  max-width: none;
-  width: 100%;
-  height: 100%;
-  aspect-ratio: auto;
-  max-height: none;
 }
 
 .player-loading {

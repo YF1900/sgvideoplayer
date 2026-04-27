@@ -62,10 +62,6 @@
       'qr.exportEmpty': '履歴が空です。',
       'qr.imported': 'QRコードから {n} 件の履歴を取り込みました。',
       'qr.close': '閉じる',
-      'menu.player': 'プレーヤー',
-      'menu.forceFullscreen': '動画を画面いっぱいに表示',
-      'menu.forceFullscreenHint':
-        'オフ: コントロールバーは画面下端 / オン: 動画は最大化されるがコントロール位置は機種依存',
       'menu.closeButtonPos': '動画を閉じるボタンの位置',
       'pos.topLeft': '左上',
       'pos.topRight': '右上',
@@ -169,10 +165,6 @@
       'qr.exportEmpty': 'No history to share.',
       'qr.imported': 'Imported {n} entries from QR.',
       'qr.close': 'Close',
-      'menu.player': 'Player',
-      'menu.forceFullscreen': 'Stretch video to full screen',
-      'menu.forceFullscreenHint':
-        'Off: controls anchored to the screen bottom / On: video is maximized but control position depends on the device',
       'menu.closeButtonPos': 'Close button position',
       'pos.topLeft': 'Top left',
       'pos.topRight': 'Top right',
@@ -1741,41 +1733,6 @@
     }
   }
 
-  // ----- プレーヤー: 「画面いっぱい再生」モード -----
-  // 端末 / hihaho 側の都合で動画サイズを自動で最大化することができないため、
-  // メニューから明示的にオン/オフできるトグルとして提供する。
-  // オン: iframe が viewport いっぱいに広がる (ただしコントロールバーは画面下端
-  //       には来なくなる、hihaho の自然レイアウトに従う)
-  // オフ: iframe は 16:9・1199px 上限の固定サイズで画面下端に貼り付き、
-  //       コントロールバーが画面下端に並ぶ
-  const FORCE_FULL_KEY = 'hihaho-qr-force-full';
-
-  function getForceFullscreen() {
-    return localStorage.getItem(FORCE_FULL_KEY) === '1';
-  }
-
-  function applyForceFullscreen() {
-    const ps = document.getElementById('player-screen');
-    if (!ps) return;
-    ps.classList.toggle('force-fullscreen', getForceFullscreen());
-  }
-
-  function setForceFullscreen(on) {
-    if (on) {
-      localStorage.setItem(FORCE_FULL_KEY, '1');
-    } else {
-      localStorage.removeItem(FORCE_FULL_KEY);
-    }
-    applyForceFullscreen();
-    refreshForceFullscreenActive();
-  }
-
-  function refreshForceFullscreenActive() {
-    const btn = document.getElementById('menu-force-full');
-    if (!btn) return;
-    btn.classList.toggle('active', getForceFullscreen());
-  }
-
   // ----- プレーヤー -----
   async function playVideo(item) {
     bumpPlayCount(item.uuid);
@@ -1806,7 +1763,6 @@
 
     iframe.src = url;
     showScreen('player-screen');
-    applyForceFullscreen();
 
     requestAnimationFrame(() => {
       // 自前で fullscreen は呼ばない (Android 大画面で解除できなくなる事象)。
@@ -2182,7 +2138,6 @@
       refreshLangActive();
       refreshSortActive();
       refreshClosePosActive();
-      refreshForceFullscreenActive();
       refreshTrashUi();
     }
 
@@ -2221,14 +2176,6 @@
         if (pos) setClosePos(pos);
       });
     });
-
-    // 「動画を画面いっぱいに表示」トグル
-    const forceFullBtn = document.getElementById('menu-force-full');
-    if (forceFullBtn) {
-      forceFullBtn.addEventListener('click', () => {
-        setForceFullscreen(!getForceFullscreen());
-      });
-    }
 
     // データ書き出し / 取り込み
     const exportBtn = document.getElementById('menu-export');
@@ -2434,9 +2381,6 @@
         showScreen('home-screen');
       }
     });
-
-    // 起動時に「画面いっぱい再生」設定を反映
-    applyForceFullscreen();
 
     // Service Worker 登録 + 更新ボタンの配線
     setupServiceWorkerAndUpdate();
