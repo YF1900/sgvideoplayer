@@ -1795,16 +1795,11 @@
 
     const container = document.getElementById('player-container');
     requestAnimationFrame(() => {
-      // iframe 自身を Fullscreen API でフルスクリーン化することで、
-      // 内部の hihaho JS が fullscreenchange を検知し body.fullscreen を付与、
-      // hihaho の CSS ルール `.fullscreen #playerContainer .VideoContainer
-      // { position: fixed; inset: 0 }` が発火して動画が画面いっぱいに描画される。
-      // (Android 大画面・PC ブラウザで動画が中央に小さく表示される問題への根本対策)
-      // iOS Safari は iframe.requestFullscreen を実装していないため、
-      // CSS 側の transform: scale フォールバックが代わりに効く。
-      tryEnterFullscreen(iframe);
-      // それでも fullscreen が立たない環境向けに、player-container の fullscreen で
-      // URL バーを隠す試行も残す (iframe が成功していれば early-return される)
+      // iframe 自身を Fullscreen API でフルスクリーン化すると hihaho 内部の
+      // ネスト iframe / 双方向コンテンツとも競合し、X 閉じるボタンも隠れて
+      // しまうため採用しない。代わりに親文書側の fullscreen と、CSS の
+      // transform: scale (#player-iframe を 640×360 設計でスケール) で対処。
+      tryEnterFullscreen(document.documentElement);
       tryEnterFullscreen(container);
       tryLockOrientation();
       updatePlayerScale();
