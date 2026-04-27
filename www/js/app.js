@@ -1736,10 +1736,16 @@
   // ----- プレーヤー スケーリング -----
   // CSS のメディアクエリで iframe を 1280×720 固定にしている画面サイズでは、
   // window の実サイズに合わせて transform: scale() の倍率を計算する。
-  const PLAYER_DESIGN_W = 1280;
-  const PLAYER_DESIGN_H = 720;
-  const PLAYER_SCALE_MIN_W = 1024;
-  const PLAYER_SCALE_MIN_H = 600;
+  // hihaho の埋め込みプレーヤーは「デスクトップ的なビューポート」だと
+  // 動画要素を素材解像度のまま中央表示するため、Android の大型タブレットや
+  // PC ブラウザで小さく見える。設計サイズをモバイル幅 (640×360) にすることで
+  // hihaho 側に「動画をビューポート全体にフィット」モードを取らせ、
+  // そのうえで transform: scale() で実画面サイズへ拡大する。
+  const PLAYER_DESIGN_W = 640;
+  const PLAYER_DESIGN_H = 360;
+  // 設計サイズを下げたのに合わせて scale 適用の閾値も少し下げる
+  const PLAYER_SCALE_MIN_W = 768;
+  const PLAYER_SCALE_MIN_H = 480;
 
   function updatePlayerScale() {
     const container = document.getElementById('player-container');
