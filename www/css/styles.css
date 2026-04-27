@@ -1126,7 +1126,7 @@ button {
   position: relative;
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   width: 100vw;
   height: 100vh;
@@ -1140,6 +1140,26 @@ button {
   height: 100%;
   border: 0;
   background: #000;
+}
+
+/* 大きめの横画面 (32" タブレット / 大型 PC モニタ等) では hihaho が
+   #playerContainer を 50% 幅にし、動画コンテナを縦中央に配置するため、
+   コントロールバーが画面の真ん中あたりに浮いてしまう。
+   - iframe 幅を 1199px まで絞り込んで hihaho の `@media (max-width: 1200px)`
+     ルートに乗せ、VideoContainer が iframe を完全に埋めるモードに切り替える
+   - iframe を 16:9 アスペクトに固定して、ビデオがレターボックス無しで iframe
+     を埋める (16:9 ビデオ × 16:9 コンテナ = ぴったり)
+   - 親 .player-container の align-items: flex-end と組み合わせることで、
+     iframe の下端 = コントロールバーの位置 = 画面最下端 になる
+   横方向は中央寄せ、上方向に黒い余白が出るが、これは hihaho 側のレイアウトを
+   外側からハックせずに「コントロールを画面下端」に持って行くための妥協 */
+@media (orientation: landscape) and (min-width: 1024px) {
+  #player-iframe {
+    max-width: 1199px;
+    aspect-ratio: 16 / 9;
+    height: auto;
+    max-height: 100%;
+  }
 }
 
 .player-loading {
