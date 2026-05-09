@@ -1,10 +1,13 @@
-const CACHE_NAME = 'hihaho-qr-v38';
+const CACHE_NAME = 'hihaho-qr-v39';
 const FONT_CACHE_NAME = 'hihaho-qr-fonts-v1';
 const ASSETS = [
   './',
   './index.html',
+  './vtt-editor.html',
   './css/styles.css',
+  './css/vtt-editor.css',
   './js/app.js',
+  './js/vtt-editor.js',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-maskable.svg',
