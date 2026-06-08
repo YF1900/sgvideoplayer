@@ -18,6 +18,10 @@
   let nextGlossaryId = 1;
   let currentFileName = 'subtitles.vtt';
   let filterQuery = '';
+  let cpsThreshold = 20;
+  let videoEl = null;
+  let followPlayback = true;
+  let lastPlayingCueId = -1;
 
   // ========== Undo/Redo 履歴 ==========
   const HISTORY_LIMIT = 100;
@@ -181,6 +185,53 @@
       });
     }
     return result;
+  }
+
+  // ========== SRT パーサ ==========
+  function parseSrt(text) {
+    if (!text) return [];
+    text = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+    const blocks = text.split(/\n\n+/);
+    const result = [];
+    blocks.forEach((block) => {
+      const lines = block.split('\n').filter((l, i) => !(i === 0 && /^\d+\s*$/.test(l))); // 先頭の番号行をスキップ
+      // 最初の行が番号でなかった場合の保険
+      let startLine = 0;
+      if (/^\d+\s*$/.test((block.split('\n')[0] || ''))) {
+        // すでにスキップ済み
+      } else if (lines.length > 0 && /^\d+\s*$/.test(lines[0])) {
+        startLine = 1;
+      }
+      const timing = lines[startLine];
+      if (!timing || !timing.includes('-->')) return;
+      const m = timing.match(/([\d:.,]+)\s*-->\s*([\d:.,]+)/);
+      if (!m) return;
+      const start = parseTime(m[1]);
+      const end = parseTime(m[2]);
+      if (!isFinite(start) || !isFinite(end)) return;
+      const textLines = lines.slice(startLine + 1);
+      result.push({
+        id: nextLocalId++,
+        idText: '',
+        start,
+        end,
+        settings: '',
+        text: textLines.join('\n').trim(),
+      });
+    });
+    return result;
+  }
+
+  function buildSrt(cueList) {
+    const out = [];
+    cueList.forEach((c, idx) => {
+      out.push(String(idx + 1));
+      const fmt = (s) => formatTime(s).replace('.', ',');
+      out.push(fmt(c.start) + ' --> ' + fmt(c.end));
+      out.push(c.text || '');
+      out.push('');
+    });
+    return out.join('\n');
   }
 
   // ========== VTT 出力 ==========
@@ -384,6 +435,53 @@
     // 時間シフト
     $('vtt-shift-apply').addEventListener('click', applyTimeShift);
 
+    // ポップアップメニュー
+    const moreBtn = $('vtt-more-btn');
+    const moreMenu = $('vtt-more-menu');
+    moreBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      moreMenu.classList.toggle('hidden');
+      moreBtn.setAttribute('aria-expanded', String(!moreMenu.classList.contains('hidden')));
+    });
+    document.addEventListener('click', (e) => {
+      if (!moreMenu.contains(e.target) && e.target !== moreBtn) {
+        moreMenu.classList.add('hidden');
+        moreBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+    $('vtt-export-srt').addEventListener('click', () => {
+      moreMenu.classList.add('hidden');
+      downloadSrt();
+    });
+    $('vtt-import-srt').addEventListener('click', () => {
+      moreMenu.classList.add('hidden');
+      $('vtt-load-srt-input').click();
+    });
+    $('vtt-load-srt-input').addEventListener('change', onFileSelected);
+    $('vtt-auto-fix').addEventListener('click', () => {
+      moreMenu.classList.add('hidden');
+      autoFix();
+    });
+    $('vtt-renumber').addEventListener('click', () => {
+      moreMenu.classList.add('hidden');
+      renumberIds();
+    });
+
+    // CPS しきい値
+    const cpsInput = $('vtt-cps-threshold');
+    if (cpsInput) {
+      cpsInput.addEventListener('change', () => {
+        const v = parseInt(cpsInput.value, 10);
+        if (isFinite(v) && v >= 5 && v <= 40) {
+          cpsThreshold = v;
+          recomputeAllBadges();
+        }
+      });
+    }
+
+    // 動画プレビュー
+    setupVideoPreview();
+
     // 置換
     $('vtt-replace-preview').addEventListener('click', () => runReplace(true));
     $('vtt-replace-apply').addEventListener('click', () => runReplace(false));
@@ -431,11 +529,16 @@
 
   function loadFile(file) {
     const reader = new FileReader();
+    const isSrt = /\.srt$/i.test(file.name) ||
+      (file.type === 'application/x-subrip') ||
+      (file.type === '' && /\.srt$/i.test(file.name));
     reader.onload = () => {
       try {
-        const parsed = parseVtt(String(reader.result || ''));
+        const raw = String(reader.result || '');
+        const looksLikeSrt = isSrt || (!/^WEBVTT/.test(raw.trim()) && /\d+\n\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->/m.test(raw));
+        const parsed = looksLikeSrt ? parseSrt(raw) : parseVtt(raw);
         cues = parsed;
-        currentFileName = file.name || 'subtitles.vtt';
+        currentFileName = (file.name || 'subtitles.vtt').replace(/\.srt$/i, '.vtt');
         if (!/\.vtt$/i.test(currentFileName)) currentFileName += '.vtt';
         // 履歴をリセット
         history = [{ cues: cloneCues(cues) }];
@@ -468,6 +571,24 @@
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast('保存しました: ' + (fileName || 'subtitles.vtt'));
+  }
+
+  function downloadSrt() {
+    if (cues.length === 0) {
+      toast('保存する字幕がありません');
+      return;
+    }
+    const text = buildSrt(cues);
+    const blob = new Blob([text], { type: 'application/x-subrip;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (currentFileName || 'subtitles.vtt').replace(/\.vtt$/i, '.srt');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('SRT として保存しました');
   }
 
   // ========== 字幕一覧の描画 ==========
@@ -537,6 +658,30 @@
       node.querySelector('.vtt-cue-down').addEventListener('click', () => moveCue(c.id, +1));
       node.querySelector('.vtt-cue-del').addEventListener('click', () => deleteCue(c.id));
 
+      const seekBtn = node.querySelector('.vtt-cue-seek');
+      const setStartBtn = node.querySelector('.vtt-cue-set-start');
+      const setEndBtn = node.querySelector('.vtt-cue-set-end');
+      seekBtn.addEventListener('click', () => seekVideoTo(c.start));
+      setStartBtn.addEventListener('click', () => {
+        if (!videoEl || !isFinite(videoEl.currentTime)) { toast('動画を読み込んでください'); return; }
+        c.start = videoEl.currentTime;
+        if (c.end < c.start) c.end = c.start + 1;
+        startInput.value = formatTime(c.start);
+        endInput.value = formatTime(c.end);
+        updateCueBadges(node, c, idx);
+        pushHistory();
+        autosave();
+      });
+      setEndBtn.addEventListener('click', () => {
+        if (!videoEl || !isFinite(videoEl.currentTime)) { toast('動画を読み込んでください'); return; }
+        c.end = Math.max(c.start, videoEl.currentTime);
+        endInput.value = formatTime(c.end);
+        updateCueBadges(node, c, idx);
+        pushHistory();
+        autosave();
+      });
+
+      updateCueBadges(node, c, idx);
       frag.appendChild(node);
     });
     els.cuesContainer.appendChild(frag);
@@ -578,6 +723,165 @@
   function validateCueDom(node, c) {
     const invalid = !(c.end > c.start);
     node.classList.toggle('invalid', invalid);
+  }
+
+  function updateCueBadges(node, c, idx) {
+    const container = node.querySelector('.vtt-cue-badges');
+    if (!container) return;
+    container.innerHTML = '';
+    const duration = c.end - c.start;
+
+    // Duration
+    const durBadge = document.createElement('span');
+    durBadge.className = 'vtt-badge';
+    durBadge.textContent = duration > 0 ? `${duration.toFixed(2)}s` : '0s';
+    if (duration > 0 && duration < 0.8) durBadge.classList.add('vtt-badge-warn');
+    if (duration <= 0) durBadge.classList.add('vtt-badge-danger');
+    container.appendChild(durBadge);
+
+    // CPS（改行と空白を除いた文字数 / 秒）
+    if (duration > 0 && c.text) {
+      const chars = c.text.replace(/\s+/g, '').length;
+      const cps = chars / duration;
+      const cpsBadge = document.createElement('span');
+      cpsBadge.className = 'vtt-badge';
+      cpsBadge.textContent = `${cps.toFixed(1)} CPS`;
+      if (cps > cpsThreshold * 1.4) cpsBadge.classList.add('vtt-badge-danger');
+      else if (cps > cpsThreshold) cpsBadge.classList.add('vtt-badge-warn');
+      cpsBadge.title = '文字/秒 — 読み速度の目安';
+      container.appendChild(cpsBadge);
+    }
+
+    // Overlap with previous
+    if (idx > 0) {
+      const prev = cues[idx - 1];
+      if (prev && c.start < prev.end - 0.001) {
+        const ov = document.createElement('span');
+        ov.className = 'vtt-badge vtt-badge-danger';
+        ov.textContent = '重複';
+        ov.title = `前の字幕 (#${idx}) と ${(prev.end - c.start).toFixed(2)}s 重なっています`;
+        container.appendChild(ov);
+      }
+    }
+
+    // Line length warning（1行あたり 42 文字を超える場合、放送字幕の一般的基準）
+    if (c.text) {
+      const longest = c.text.split('\n').reduce((m, l) => Math.max(m, l.length), 0);
+      if (longest > 42) {
+        const lb = document.createElement('span');
+        lb.className = 'vtt-badge vtt-badge-warn';
+        lb.textContent = `${longest}字/行`;
+        lb.title = '1 行が 42 文字を超えています（放送字幕の一般的な上限）';
+        container.appendChild(lb);
+      }
+    }
+  }
+
+  function recomputeAllBadges() {
+    const nodes = els.cuesContainer.querySelectorAll('.vtt-cue');
+    nodes.forEach((node, idx) => {
+      const c = cues[idx];
+      if (c) updateCueBadges(node, c, idx);
+    });
+  }
+
+  // ========== 動画プレビュー ==========
+  function setupVideoPreview() {
+    videoEl = document.getElementById('vtt-video');
+    const panel = document.getElementById('vtt-video-panel');
+    const toggle = document.getElementById('vtt-video-toggle');
+    const pick = document.getElementById('vtt-video-pick');
+    const input = document.getElementById('vtt-video-input');
+    const close = document.getElementById('vtt-video-close');
+    const timeLbl = document.getElementById('vtt-video-time');
+    const followCb = document.getElementById('vtt-follow-playback');
+    if (!videoEl || !panel || !toggle) return;
+
+    toggle.addEventListener('click', () => {
+      panel.classList.toggle('hidden');
+    });
+    close.addEventListener('click', () => panel.classList.add('hidden'));
+    pick.addEventListener('click', () => input.click());
+    input.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      const url = URL.createObjectURL(f);
+      videoEl.src = url;
+      videoEl.load();
+    });
+    followCb.addEventListener('change', () => {
+      followPlayback = followCb.checked;
+    });
+    videoEl.addEventListener('timeupdate', () => {
+      const t = videoEl.currentTime || 0;
+      timeLbl.textContent = formatTime(t);
+      highlightPlayingCue(t);
+    });
+  }
+
+  function seekVideoTo(seconds) {
+    if (!videoEl) return;
+    if (!videoEl.src) { toast('動画を読み込んでください'); return; }
+    document.getElementById('vtt-video-panel').classList.remove('hidden');
+    videoEl.currentTime = Math.max(0, seconds);
+    videoEl.play().catch(() => {});
+  }
+
+  function highlightPlayingCue(t) {
+    let activeId = -1;
+    for (let i = 0; i < cues.length; i++) {
+      const c = cues[i];
+      if (t >= c.start && t < c.end) { activeId = c.id; break; }
+    }
+    if (activeId === lastPlayingCueId) return;
+    lastPlayingCueId = activeId;
+    const nodes = els.cuesContainer.querySelectorAll('.vtt-cue');
+    nodes.forEach((n) => n.classList.remove('playing'));
+    if (activeId < 0) return;
+    const target = els.cuesContainer.querySelector(`.vtt-cue[data-id="${activeId}"]`);
+    if (target) {
+      target.classList.add('playing');
+      if (followPlayback) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }
+
+  // ========== 自動修正 / ID振り直し ==========
+  function autoFix() {
+    if (cues.length === 0) { toast('字幕がありません'); return; }
+    if (!confirm('重複の解消・最小尺の確保を一括適用します。続行しますか？')) return;
+    const MIN_DURATION = 0.8;
+    const GAP = 0.04;
+    let fixed = 0;
+    // 開始時刻昇順で並べ替え
+    cues.sort((a, b) => a.start - b.start);
+    for (let i = 0; i < cues.length; i++) {
+      const c = cues[i];
+      // 最小尺
+      if (c.end - c.start < MIN_DURATION) {
+        c.end = c.start + MIN_DURATION;
+        fixed++;
+      }
+      const next = cues[i + 1];
+      if (next && c.end > next.start - GAP) {
+        c.end = Math.max(c.start + 0.1, next.start - GAP);
+        fixed++;
+      }
+    }
+    pushHistory();
+    autosave();
+    renderCues();
+    toast(`${fixed} 件を調整しました`);
+  }
+
+  function renumberIds() {
+    cues.forEach((c, i) => { c.idText = String(i + 1); });
+    pushHistory();
+    autosave();
+    renderCues();
+    toast('ID を 1 から振り直しました');
   }
 
   function getSelectedIds() {

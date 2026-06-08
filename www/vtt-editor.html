@@ -30,7 +30,20 @@
         <span class="material-symbols-outlined" aria-hidden="true">file_download</span>
         <span class="vtt-btn-label">保存</span>
       </button>
-      <input id="vtt-load-input" type="file" accept=".vtt,text/vtt,text/plain" hidden />
+      <div class="vtt-menu-wrap">
+        <button id="vtt-more-btn" class="vtt-btn" type="button" title="他の操作" aria-haspopup="true" aria-expanded="false">
+          <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
+        </button>
+        <div id="vtt-more-menu" class="vtt-popup hidden" role="menu">
+          <button class="vtt-popup-item" id="vtt-export-srt" type="button">SRT として書き出し</button>
+          <button class="vtt-popup-item" id="vtt-import-srt" type="button">SRT を取り込む</button>
+          <hr />
+          <button class="vtt-popup-item" id="vtt-auto-fix" type="button">自動修正（重複/最小尺）</button>
+          <button class="vtt-popup-item" id="vtt-renumber" type="button">IDを 1 から振り直す</button>
+        </div>
+      </div>
+      <input id="vtt-load-input" type="file" accept=".vtt,.srt,text/vtt,text/plain" hidden />
+      <input id="vtt-load-srt-input" type="file" accept=".srt,text/plain" hidden />
     </div>
   </header>
 
@@ -98,10 +111,40 @@
         </div>
         <span id="vtt-status" class="vtt-status">字幕: 0 件</span>
       </div>
+      <div id="vtt-video-panel" class="vtt-video-panel hidden">
+        <video id="vtt-video" controls preload="metadata"></video>
+        <div class="vtt-video-controls">
+          <button class="vtt-btn vtt-btn-inline" type="button" id="vtt-video-pick" title="動画ファイルを選択">
+            <span class="material-symbols-outlined" aria-hidden="true">movie</span>
+            動画
+          </button>
+          <input id="vtt-video-input" type="file" accept="video/*,audio/*" hidden />
+          <span class="vtt-video-time" id="vtt-video-time">00:00:00.000</span>
+          <button class="vtt-btn vtt-btn-inline" type="button" id="vtt-video-close" title="動画を閉じる">
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+          </button>
+        </div>
+      </div>
+      <div class="vtt-secondary-toolbar">
+        <button class="vtt-btn vtt-btn-inline" type="button" id="vtt-video-toggle">
+          <span class="material-symbols-outlined" aria-hidden="true">play_circle</span>
+          動画プレビュー
+        </button>
+        <label class="vtt-toolbar-check" title="プレビュー再生時に現在の字幕までスクロール">
+          <input type="checkbox" id="vtt-follow-playback" checked />
+          自動スクロール
+        </label>
+        <span class="vtt-toolbar-sep"></span>
+        <label class="vtt-toolbar-check" title="字幕の文字/秒 (CPS) のしきい値。これを超えると警告表示">
+          CPS 警告:
+          <input type="number" id="vtt-cps-threshold" min="5" max="40" step="1" value="20" style="width:54px;background:var(--bg);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:2px 4px;font-size:12px;" />
+        </label>
+      </div>
       <div id="vtt-cues" class="vtt-cues"></div>
       <div id="vtt-empty" class="vtt-empty">
-        <p>VTT ファイルを読み込むか、「新規」から作成してください。</p>
+        <p>VTT または SRT ファイルを読み込むか、「新規」から作成してください。</p>
         <p class="vtt-empty-sub">番号は出力時に 1 から自動で振り直されます。</p>
+        <p class="vtt-empty-sub">ヒント: Ctrl+Z / Ctrl+Shift+Z で元に戻す/やり直し、Ctrl+S で保存。</p>
       </div>
     </section>
 
@@ -217,7 +260,17 @@
         <span class="vtt-cue-arrow">→</span>
         <input type="text" class="vtt-cue-end" placeholder="00:00:00.000" />
         <input type="text" class="vtt-cue-id" placeholder="ID（任意）" />
+        <div class="vtt-cue-badges"></div>
         <div class="vtt-cue-actions">
+          <button type="button" class="vtt-cue-btn vtt-cue-seek" title="動画をこの字幕の開始位置へ">
+            <span class="material-symbols-outlined" aria-hidden="true">play_arrow</span>
+          </button>
+          <button type="button" class="vtt-cue-btn vtt-cue-set-start" title="現在の動画位置を開始時刻に">
+            <span class="material-symbols-outlined" aria-hidden="true">first_page</span>
+          </button>
+          <button type="button" class="vtt-cue-btn vtt-cue-set-end" title="現在の動画位置を終了時刻に">
+            <span class="material-symbols-outlined" aria-hidden="true">last_page</span>
+          </button>
           <button type="button" class="vtt-cue-btn vtt-cue-merge-next" title="次の字幕と結合">
             <span class="material-symbols-outlined" aria-hidden="true">cell_merge</span>
           </button>
