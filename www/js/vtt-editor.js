@@ -17,6 +17,74 @@
   let glossary = [];
   let nextGlossaryId = 1;
   let currentFileName = 'subtitles.vtt';
+  let filterQuery = '';
+
+  // ========== Undo/Redo 履歴 ==========
+  const HISTORY_LIMIT = 100;
+  /** @type {{ cues: any[] }[]} */
+  let history = [];
+  let historyIndex = -1;
+  let textEditTimer = null;
+
+  function cloneCues(src) {
+    return src.map((c) => ({
+      id: c.id,
+      idText: c.idText,
+      start: c.start,
+      end: c.end,
+      settings: c.settings,
+      text: c.text,
+    }));
+  }
+
+  function pushHistory() {
+    // 未来履歴を切り捨て
+    if (historyIndex < history.length - 1) {
+      history = history.slice(0, historyIndex + 1);
+    }
+    history.push({ cues: cloneCues(cues) });
+    if (history.length > HISTORY_LIMIT) {
+      history.shift();
+    }
+    historyIndex = history.length - 1;
+    updateHistoryButtons();
+  }
+
+  function restoreFromHistory(idx) {
+    const snap = history[idx];
+    if (!snap) return;
+    cues = cloneCues(snap.cues);
+    historyIndex = idx;
+    updateHistoryButtons();
+    autosave();
+    renderCues();
+  }
+
+  function undo() {
+    if (historyIndex <= 0) return;
+    restoreFromHistory(historyIndex - 1);
+    toast('元に戻しました');
+  }
+
+  function redo() {
+    if (historyIndex >= history.length - 1) return;
+    restoreFromHistory(historyIndex + 1);
+    toast('やり直しました');
+  }
+
+  function updateHistoryButtons() {
+    const u = document.getElementById('vtt-undo-btn');
+    const r = document.getElementById('vtt-redo-btn');
+    if (u) u.disabled = historyIndex <= 0;
+    if (r) r.disabled = historyIndex >= history.length - 1;
+  }
+
+  function debouncedPushHistory() {
+    if (textEditTimer) clearTimeout(textEditTimer);
+    textEditTimer = setTimeout(() => {
+      pushHistory();
+    }, 500);
+  }
 
   // ========== 時間文字列 ↔ 秒変換 ==========
   function parseTime(str) {
@@ -241,9 +309,14 @@
       // 自動復元成功
     }
 
+    // 初期スナップショット
+    history = [{ cues: cloneCues(cues) }];
+    historyIndex = 0;
+
     bindUI();
     renderCues();
     renderGlossary();
+    updateHistoryButtons();
   }
 
   function bindUI() {
@@ -268,6 +341,7 @@
       if (cues.length > 0 && !confirm('現在の字幕を破棄して新規作成しますか？')) return;
       cues = [];
       currentFileName = 'subtitles.vtt';
+      pushHistory();
       autosave();
       renderCues();
     });
@@ -275,6 +349,40 @@
     $('vtt-select-all-btn').addEventListener('click', toggleSelectAll);
     $('vtt-merge-btn').addEventListener('click', mergeSelected);
     $('vtt-delete-btn').addEventListener('click', deleteSelected);
+
+    // Undo/Redo
+    $('vtt-undo-btn').addEventListener('click', undo);
+    $('vtt-redo-btn').addEventListener('click', redo);
+    document.addEventListener('keydown', (e) => {
+      const isCtrl = e.ctrlKey || e.metaKey;
+      if (!isCtrl) return;
+      const tag = (e.target && e.target.tagName) || '';
+      const isText = tag === 'INPUT' || tag === 'TEXTAREA';
+      const key = e.key.toLowerCase();
+      if (key === 'z') {
+        // テキスト入力中の Ctrl+Z はブラウザのネイティブ undo を優先
+        if (isText) return;
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (key === 'y') {
+        if (isText) return;
+        e.preventDefault();
+        redo();
+      } else if (key === 's') {
+        e.preventDefault();
+        downloadVtt(cues, currentFileName);
+      }
+    });
+
+    // 検索フィルタ
+    $('vtt-filter').addEventListener('input', (e) => {
+      filterQuery = e.target.value || '';
+      applyFilter();
+    });
+
+    // 時間シフト
+    $('vtt-shift-apply').addEventListener('click', applyTimeShift);
 
     // 置換
     $('vtt-replace-preview').addEventListener('click', () => runReplace(true));
@@ -329,6 +437,10 @@
         cues = parsed;
         currentFileName = file.name || 'subtitles.vtt';
         if (!/\.vtt$/i.test(currentFileName)) currentFileName += '.vtt';
+        // 履歴をリセット
+        history = [{ cues: cloneCues(cues) }];
+        historyIndex = 0;
+        updateHistoryButtons();
         autosave();
         renderCues();
         toast(`${parsed.length} 件の字幕を読み込みました`);
@@ -389,6 +501,7 @@
         if (isFinite(v)) c.start = v;
         startInput.value = formatTime(c.start);
         validateCueDom(node, c);
+        pushHistory();
         autosave();
       });
       endInput.addEventListener('change', () => {
@@ -396,15 +509,18 @@
         if (isFinite(v)) c.end = v;
         endInput.value = formatTime(c.end);
         validateCueDom(node, c);
+        pushHistory();
         autosave();
       });
       idInput.addEventListener('change', () => {
         c.idText = idInput.value.trim();
+        pushHistory();
         autosave();
       });
       textArea.addEventListener('input', () => {
         c.text = textArea.value;
         autosave();
+        debouncedPushHistory();
       });
       // テキスト高さの自動調整
       autoResize(textArea);
@@ -425,6 +541,33 @@
     });
     els.cuesContainer.appendChild(frag);
     els.status.textContent = `字幕: ${cues.length} 件`;
+    applyFilter();
+  }
+
+  function applyFilter() {
+    const q = filterQuery.trim().toLowerCase();
+    const nodes = els.cuesContainer.querySelectorAll('.vtt-cue');
+    let shown = 0;
+    nodes.forEach((node) => {
+      if (!q) {
+        node.classList.remove('filtered');
+        shown++;
+        return;
+      }
+      const text = (node.querySelector('.vtt-cue-text') || {}).value || '';
+      const idText = (node.querySelector('.vtt-cue-id') || {}).value || '';
+      if (text.toLowerCase().includes(q) || idText.toLowerCase().includes(q)) {
+        node.classList.remove('filtered');
+        shown++;
+      } else {
+        node.classList.add('filtered');
+      }
+    });
+    if (q) {
+      els.status.textContent = `字幕: ${cues.length} 件（表示 ${shown} 件）`;
+    } else {
+      els.status.textContent = `字幕: ${cues.length} 件`;
+    }
   }
 
   function autoResize(textArea) {
@@ -471,6 +614,7 @@
       text: '',
     };
     cues.splice(index, 0, cue);
+    pushHistory();
     autosave();
     renderCues();
   }
@@ -479,6 +623,7 @@
     const idx = cues.findIndex((c) => c.id === id);
     if (idx >= 0) {
       cues.splice(idx, 1);
+      pushHistory();
       autosave();
       renderCues();
     }
@@ -492,6 +637,7 @@
     }
     if (!confirm(`${ids.size} 件の字幕を削除しますか？`)) return;
     cues = cues.filter((c) => !ids.has(c.id));
+    pushHistory();
     autosave();
     renderCues();
   }
@@ -503,6 +649,7 @@
     if (target < 0 || target >= cues.length) return;
     const [c] = cues.splice(idx, 1);
     cues.splice(target, 0, c);
+    pushHistory();
     autosave();
     renderCues();
   }
@@ -517,8 +664,37 @@
     a.start = Math.min(a.start, b.start);
     a.text = [a.text, b.text].filter((s) => s && s.length > 0).join(sep);
     cues.splice(idx + 1, 1);
+    pushHistory();
     autosave();
     renderCues();
+  }
+
+  // ========== 時間シフト ==========
+  function applyTimeShift() {
+    const v = parseFloat($('vtt-shift-amount').value);
+    if (!isFinite(v) || v === 0) {
+      toast('シフト秒数を入力してください');
+      return;
+    }
+    const onlySelected = $('vtt-shift-selected').checked;
+    const targetCues = onlySelected ? getSelectedCues() : cues;
+    if (targetCues.length === 0) {
+      toast('対象の字幕がありません');
+      return;
+    }
+    // 負方向シフトで開始が 0 を下回るかチェック
+    const minStart = Math.min(...targetCues.map((c) => c.start));
+    if (minStart + v < 0) {
+      if (!confirm('開始時刻が 0 を下回ります。0 にクランプして続行しますか？')) return;
+    }
+    targetCues.forEach((c) => {
+      c.start = Math.max(0, c.start + v);
+      c.end = Math.max(c.start, c.end + v);
+    });
+    pushHistory();
+    autosave();
+    renderCues();
+    toast(`${targetCues.length} 件を ${v >= 0 ? '+' : ''}${v.toFixed(3)} 秒シフト`);
   }
 
   function mergeSelected() {
@@ -549,6 +725,7 @@
     for (let i = indexes.length - 1; i >= 0; i--) cues.splice(indexes[i], 1);
     // 元の最初の位置に挿入
     cues.splice(indexes[0], 0, merged);
+    pushHistory();
     autosave();
     renderCues();
     toast(`${selected.length} 件を結合しました`);
@@ -624,6 +801,7 @@
           `${cueAffected} 件の字幕で ${matchCount} 件一致します。\n\n` + previewLines.join('\n');
       }
     } else {
+      if (matchCount > 0) pushHistory();
       autosave();
       renderCues();
       els.replaceResult.classList.add('show');
@@ -791,6 +969,7 @@
     if (errors.length > 0) {
       toast('エラー: ' + errors[0]);
     }
+    if (totalMatches > 0) pushHistory();
     autosave();
     renderCues();
     toast(`${cueAffected} 件の字幕で ${totalMatches} 件を置換`);

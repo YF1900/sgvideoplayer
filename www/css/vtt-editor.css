@@ -151,6 +151,49 @@
   color: var(--text-muted);
 }
 
+.vtt-toolbar-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+.vtt-toolbar-field .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+.vtt-toolbar-field input[type="search"],
+.vtt-toolbar-field input[type="number"] {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  width: 140px;
+  outline: none;
+  padding: 4px 0;
+  font-family: inherit;
+}
+.vtt-toolbar-field input[type="number"] { width: 80px; }
+.vtt-toolbar-field input[type="search"]::-webkit-search-cancel-button {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+
+.vtt-btn-inline {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.vtt-cue.filtered { display: none; }
+.vtt-cue mark {
+  background: rgba(255, 94, 58, 0.4);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
 .vtt-cues {
   display: flex;
   flex-direction: column;

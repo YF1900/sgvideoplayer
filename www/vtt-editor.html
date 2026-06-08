@@ -54,6 +54,15 @@
           <span class="vtt-btn-label">追加</span>
         </button>
         <span class="vtt-toolbar-sep"></span>
+        <button id="vtt-undo-btn" class="vtt-btn" type="button" title="元に戻す (Ctrl+Z)" disabled>
+          <span class="material-symbols-outlined" aria-hidden="true">undo</span>
+          <span class="vtt-btn-label">元に戻す</span>
+        </button>
+        <button id="vtt-redo-btn" class="vtt-btn" type="button" title="やり直し (Ctrl+Shift+Z)" disabled>
+          <span class="material-symbols-outlined" aria-hidden="true">redo</span>
+          <span class="vtt-btn-label">やり直し</span>
+        </button>
+        <span class="vtt-toolbar-sep"></span>
         <button id="vtt-select-all-btn" class="vtt-btn" type="button" title="すべて選択 / 解除">
           <span class="material-symbols-outlined" aria-hidden="true">checklist</span>
           <span class="vtt-btn-label">全選択</span>
@@ -72,6 +81,21 @@
           結合は改行で連結
         </label>
         <span class="vtt-toolbar-sep"></span>
+        <div class="vtt-toolbar-field">
+          <span class="material-symbols-outlined" aria-hidden="true">search</span>
+          <input id="vtt-filter" type="search" placeholder="字幕を検索…" />
+        </div>
+        <div class="vtt-toolbar-field" title="時間シフト (秒)">
+          <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
+          <input id="vtt-shift-amount" type="number" step="0.001" placeholder="±秒" />
+          <button id="vtt-shift-apply" class="vtt-btn vtt-btn-inline" type="button" title="時間シフトを適用">
+            シフト
+          </button>
+          <label class="vtt-toolbar-check" title="チェック時は選択中のみシフト">
+            <input type="checkbox" id="vtt-shift-selected" />
+            選択中のみ
+          </label>
+        </div>
         <span id="vtt-status" class="vtt-status">字幕: 0 件</span>
       </div>
       <div id="vtt-cues" class="vtt-cues"></div>
