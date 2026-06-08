@@ -642,10 +642,17 @@
         c.text = textArea.value;
         autosave();
         debouncedPushHistory();
+        updateCueBadges(node, c, idx);
+        // 統計の更新はやや遅延
+        if (textEditTimer) clearTimeout(textEditTimer);
       });
       // テキスト高さの自動調整
       autoResize(textArea);
-      textArea.addEventListener('input', () => autoResize(textArea));
+      textArea.addEventListener('input', () => {
+        autoResize(textArea);
+        clearTimeout(textArea._statTimer);
+        textArea._statTimer = setTimeout(updateStatusBar, 400);
+      });
 
       const check = node.querySelector('.vtt-cue-check');
       check.addEventListener('change', () => {
@@ -687,6 +694,8 @@
     els.cuesContainer.appendChild(frag);
     els.status.textContent = `字幕: ${cues.length} 件`;
     applyFilter();
+    updateIssuesSummary();
+    updateStatusBar();
   }
 
   function applyFilter() {
@@ -783,6 +792,113 @@
       const c = cues[idx];
       if (c) updateCueBadges(node, c, idx);
     });
+    updateIssuesSummary();
+    updateStatusBar();
+  }
+
+  // ========== 検証サマリ ==========
+  function computeIssues() {
+    const issues = [];
+    for (let i = 0; i < cues.length; i++) {
+      const c = cues[i];
+      const duration = c.end - c.start;
+      if (duration <= 0) {
+        issues.push({ idx: i, severity: 'danger', tag: '不正な尺', msg: '終了時刻が開始以下です' });
+      } else if (duration < 0.8) {
+        issues.push({ idx: i, severity: 'warn', tag: '短すぎ', msg: `${duration.toFixed(2)} 秒` });
+      }
+      if (i > 0) {
+        const prev = cues[i - 1];
+        if (prev && c.start < prev.end - 0.001) {
+          issues.push({
+            idx: i,
+            severity: 'danger',
+            tag: '重複',
+            msg: `前の字幕と ${(prev.end - c.start).toFixed(2)} 秒重複`,
+          });
+        }
+      }
+      if (c.text) {
+        const chars = c.text.replace(/\s+/g, '').length;
+        if (duration > 0 && chars / duration > cpsThreshold * 1.4) {
+          issues.push({
+            idx: i,
+            severity: 'warn',
+            tag: '速い',
+            msg: `${(chars / duration).toFixed(1)} CPS（しきい値の 1.4 倍超）`,
+          });
+        }
+        const longest = c.text.split('\n').reduce((m, l) => Math.max(m, l.length), 0);
+        if (longest > 42) {
+          issues.push({ idx: i, severity: 'warn', tag: '長い行', msg: `${longest} 文字/行` });
+        }
+      }
+    }
+    return issues;
+  }
+
+  function updateIssuesSummary() {
+    const root = document.getElementById('vtt-issues');
+    const summary = document.getElementById('vtt-issues-summary');
+    const list = document.getElementById('vtt-issues-list');
+    if (!root || !summary || !list) return;
+    const issues = computeIssues();
+    list.innerHTML = '';
+    if (issues.length === 0) {
+      summary.textContent = '問題なし';
+      root.removeAttribute('data-severity');
+      root.open = false;
+      return;
+    }
+    const dangerCount = issues.filter((x) => x.severity === 'danger').length;
+    const warnCount = issues.length - dangerCount;
+    summary.textContent = `問題 ${issues.length} 件（重大 ${dangerCount} / 警告 ${warnCount}） — クリックで一覧`;
+    root.setAttribute('data-severity', dangerCount > 0 ? 'danger' : 'warn');
+    issues.forEach((iss) => {
+      const li = document.createElement('li');
+      const num = document.createElement('span');
+      num.className = 'vtt-issue-num';
+      num.textContent = '#' + (iss.idx + 1);
+      const tag = document.createElement('span');
+      tag.className = 'vtt-issue-tag' + (iss.severity === 'danger' ? ' danger' : '');
+      tag.textContent = iss.tag;
+      const msg = document.createElement('span');
+      msg.textContent = iss.msg;
+      li.appendChild(num);
+      li.appendChild(tag);
+      li.appendChild(msg);
+      li.addEventListener('click', () => scrollToCueIndex(iss.idx));
+      list.appendChild(li);
+    });
+  }
+
+  function scrollToCueIndex(idx) {
+    const c = cues[idx];
+    if (!c) return;
+    const node = els.cuesContainer.querySelector(`.vtt-cue[data-id="${c.id}"]`);
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      node.classList.add('playing');
+      setTimeout(() => node.classList.remove('playing'), 1200);
+    }
+  }
+
+  // ========== ステータスバー ==========
+  function updateStatusBar() {
+    const fileEl = document.getElementById('vtt-stat-file');
+    const cueEl = document.getElementById('vtt-stat-cues');
+    const durEl = document.getElementById('vtt-stat-duration');
+    const warnEl = document.getElementById('vtt-stat-warnings');
+    if (!fileEl) return;
+    fileEl.textContent = currentFileName;
+    cueEl.textContent = `${cues.length} 件`;
+    const total = cues.length > 0 ? cues[cues.length - 1].end : 0;
+    durEl.textContent = formatTime(total).replace(/\.\d+$/, '');
+    const issues = computeIssues();
+    const danger = issues.filter((x) => x.severity === 'danger').length;
+    warnEl.textContent = `警告 ${issues.length}`;
+    warnEl.classList.toggle('has-danger', danger > 0);
+    warnEl.classList.toggle('has-warn', issues.length > 0 && danger === 0);
   }
 
   // ========== 動画プレビュー ==========

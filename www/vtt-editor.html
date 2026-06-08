@@ -140,6 +140,13 @@
           <input type="number" id="vtt-cps-threshold" min="5" max="40" step="1" value="20" style="width:54px;background:var(--bg);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:2px 4px;font-size:12px;" />
         </label>
       </div>
+      <details id="vtt-issues" class="vtt-issues">
+        <summary>
+          <span class="material-symbols-outlined" aria-hidden="true">report</span>
+          <span id="vtt-issues-summary">問題なし</span>
+        </summary>
+        <ul id="vtt-issues-list" class="vtt-issues-list"></ul>
+      </details>
       <div id="vtt-cues" class="vtt-cues"></div>
       <div id="vtt-empty" class="vtt-empty">
         <p>VTT または SRT ファイルを読み込むか、「新規」から作成してください。</p>
@@ -247,6 +254,18 @@
       </div>
     </section>
   </main>
+
+  <footer class="vtt-statusbar">
+    <span class="vtt-statusbar-item" id="vtt-stat-file">subtitles.vtt</span>
+    <span class="vtt-statusbar-sep"></span>
+    <span class="vtt-statusbar-item" id="vtt-stat-cues">0 件</span>
+    <span class="vtt-statusbar-sep"></span>
+    <span class="vtt-statusbar-item" id="vtt-stat-duration">00:00:00</span>
+    <span class="vtt-statusbar-sep"></span>
+    <span class="vtt-statusbar-item" id="vtt-stat-warnings">警告 0</span>
+    <span class="vtt-statusbar-spacer"></span>
+    <span class="vtt-statusbar-item vtt-statusbar-hint">Ctrl+Z 元に戻す / Ctrl+S 保存</span>
+  </footer>
 
   <div id="vtt-toast" class="vtt-toast hidden"></div>
 
