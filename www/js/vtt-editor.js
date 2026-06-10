@@ -488,6 +488,14 @@
     // 動画プレビュー
     setupVideoPreview();
 
+    // 空状態のサンプル読込ボタン
+    document.querySelectorAll('[data-sample]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const url = btn.getAttribute('data-sample');
+        loadSampleFromUrl(url);
+      });
+    });
+
     // 置換
     $('vtt-replace-preview').addEventListener('click', () => runReplace(true));
     $('vtt-replace-apply').addEventListener('click', () => runReplace(false));
@@ -531,6 +539,26 @@
     const file = e.target.files && e.target.files[0];
     e.target.value = ''; // 同名ファイル再選択用
     if (file) loadFile(file);
+  }
+
+  async function loadSampleFromUrl(url) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+      const text = await res.text();
+      const isSrt = /\.srt$/i.test(url);
+      const parsed = isSrt ? parseSrt(text) : parseVtt(text);
+      cues = parsed;
+      currentFileName = url.split('/').pop().replace(/\.srt$/i, '.vtt');
+      history = [{ cues: cloneCues(cues) }];
+      historyIndex = 0;
+      updateHistoryButtons();
+      autosave();
+      renderCues();
+      toast(`サンプルを読み込みました: ${parsed.length} 件`);
+    } catch (err) {
+      toast('サンプルの読込に失敗: ' + (err && err.message ? err.message : err));
+    }
   }
 
   function loadFile(file) {

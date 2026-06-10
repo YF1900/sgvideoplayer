@@ -423,6 +423,13 @@
 }
 .vtt-empty p { margin: 6px 0; }
 .vtt-empty-sub { font-size: 12px; }
+.vtt-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+}
 
 .vtt-cue {
   background: var(--bg-elev);
