@@ -579,17 +579,19 @@
 }
 .vtt-form-row input:focus { outline: none; border-color: var(--accent); }
 
-.vtt-form-row-checks { gap: 16px; }
+.vtt-form-row-checks { gap: 16px; flex-wrap: wrap; }
 .vtt-form-row-checks label {
+  flex: 0 0 auto;
   flex-direction: row;
   align-items: center;
-  flex: 0;
+  gap: 6px;
   min-width: 0;
+  width: auto;
   white-space: nowrap;
   font-size: 13px;
   color: var(--text);
 }
-.vtt-form-row-checks input { accent-color: var(--accent); }
+.vtt-form-row-checks input { accent-color: var(--accent); flex: 0 0 auto; }
 
 .vtt-form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
