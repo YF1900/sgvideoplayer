@@ -26,6 +26,10 @@
         <span class="material-symbols-outlined" aria-hidden="true">file_open</span>
         <span class="vtt-btn-label">読み込み</span>
       </button>
+      <button id="vtt-paste-btn" class="vtt-btn" type="button" title="全文を貼り付けて取り込み">
+        <span class="material-symbols-outlined" aria-hidden="true">content_paste</span>
+        <span class="vtt-btn-label">貼り付け</span>
+      </button>
       <button id="vtt-save-btn" class="vtt-btn vtt-btn-primary" type="button" title="VTT ファイルとして保存">
         <span class="material-symbols-outlined" aria-hidden="true">file_download</span>
         <span class="vtt-btn-label">保存</span>
@@ -153,6 +157,10 @@
         <p class="vtt-empty-sub">番号は出力時に 1 から自動で振り直されます。</p>
         <p class="vtt-empty-sub">ヒント: Ctrl+Z / Ctrl+Shift+Z で元に戻す/やり直し、Ctrl+S で保存。</p>
         <div class="vtt-empty-actions">
+          <button type="button" class="vtt-btn vtt-btn-primary" id="vtt-empty-paste">
+            <span class="material-symbols-outlined" aria-hidden="true">content_paste</span>
+            全文を貼り付けて取り込む
+          </button>
           <button type="button" class="vtt-btn" data-sample="samples/demo-clean.vtt">
             <span class="material-symbols-outlined" aria-hidden="true">play_lesson</span>
             サンプル（標準）を読み込む
@@ -276,6 +284,42 @@
     <span class="vtt-statusbar-spacer"></span>
     <span class="vtt-statusbar-item vtt-statusbar-hint">Ctrl+Z 元に戻す / Ctrl+S 保存</span>
   </footer>
+
+  <!-- 貼り付け取り込みモーダル -->
+  <div id="vtt-paste-modal" class="vtt-modal hidden" role="dialog" aria-modal="true" aria-labelledby="vtt-paste-title">
+    <div class="vtt-modal-backdrop" id="vtt-paste-backdrop"></div>
+    <div class="vtt-modal-card">
+      <header class="vtt-modal-head">
+        <h2 id="vtt-paste-title">全文を貼り付けて取り込む</h2>
+        <button type="button" class="vtt-cue-btn" id="vtt-paste-close" title="閉じる" aria-label="閉じる">
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      </header>
+      <p class="vtt-modal-desc">
+        WEBVTT または SRT の全文を貼り付けてください。形式は自動判定し、字幕ごとに分割して取り込みます。
+      </p>
+      <textarea id="vtt-paste-text" class="vtt-paste-text" spellcheck="false"
+        placeholder="WEBVTT&#10;&#10;1&#10;00:00:00.000 --> 00:00:02.000&#10;最初の字幕&#10;&#10;2&#10;00:00:02.000 --> 00:00:04.000&#10;次の字幕"></textarea>
+      <div class="vtt-paste-row">
+        <label class="vtt-toolbar-check">
+          <input type="radio" name="vtt-paste-mode" value="replace" checked />
+          既存を置き換え
+        </label>
+        <label class="vtt-toolbar-check">
+          <input type="radio" name="vtt-paste-mode" value="append" />
+          末尾に追加
+        </label>
+        <span class="vtt-paste-detect" id="vtt-paste-detect"></span>
+      </div>
+      <div class="vtt-form-actions">
+        <button type="button" id="vtt-paste-import" class="vtt-btn vtt-btn-primary">
+          <span class="material-symbols-outlined" aria-hidden="true">content_cut</span>
+          <span class="vtt-btn-label">取り込んで分割</span>
+        </button>
+        <button type="button" id="vtt-paste-cancel" class="vtt-btn">キャンセル</button>
+      </div>
+    </div>
+  </div>
 
   <div id="vtt-toast" class="vtt-toast hidden"></div>
 

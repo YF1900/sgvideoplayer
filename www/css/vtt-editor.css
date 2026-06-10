@@ -726,6 +726,87 @@
   opacity: 1;
 }
 
+/* 貼り付け取り込みモーダル */
+.vtt-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.vtt-modal.hidden { display: none; }
+.vtt-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.vtt-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-elev);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.vtt-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vtt-modal-head h2 {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.vtt-modal-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+.vtt-paste-text {
+  width: 100%;
+  flex: 1;
+  min-height: 220px;
+  resize: vertical;
+  padding: 10px 12px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.vtt-paste-text:focus { outline: none; border-color: var(--accent); }
+.vtt-paste-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.vtt-paste-row .vtt-toolbar-check { color: var(--text); font-size: 13px; }
+.vtt-paste-detect {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.vtt-paste-detect.vtt { color: #6fd08c; }
+.vtt-paste-detect.srt { color: #ffc457; }
+.vtt-paste-detect.none { color: var(--danger-fg); }
+
 @media (max-width: 720px) {
   .vtt-btn-label { display: none; }
   .vtt-cue-start, .vtt-cue-end { width: 110px; font-size: 12px; }

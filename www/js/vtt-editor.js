@@ -393,6 +393,21 @@
     $('vtt-load-input').addEventListener('change', onFileSelected);
     $('vtt-save-btn').addEventListener('click', () => downloadVtt(cues, currentFileName));
 
+    // 貼り付け取り込みモーダル
+    $('vtt-paste-btn').addEventListener('click', openPasteModal);
+    const emptyPaste = $('vtt-empty-paste');
+    if (emptyPaste) emptyPaste.addEventListener('click', openPasteModal);
+    $('vtt-paste-close').addEventListener('click', closePasteModal);
+    $('vtt-paste-cancel').addEventListener('click', closePasteModal);
+    $('vtt-paste-backdrop').addEventListener('click', closePasteModal);
+    $('vtt-paste-import').addEventListener('click', confirmPasteImport);
+    $('vtt-paste-text').addEventListener('input', updatePasteDetect);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !$('vtt-paste-modal').classList.contains('hidden')) {
+        closePasteModal();
+      }
+    });
+
     // 字幕一覧ツールバー
     $('vtt-new-btn').addEventListener('click', () => {
       if (cues.length > 0 && !confirm('現在の字幕を破棄して新規作成しますか？')) return;
@@ -587,6 +602,48 @@
     };
     reader.onerror = () => toast('ファイル読み込みに失敗しました');
     reader.readAsText(file, 'utf-8');
+  }
+
+  // ========== 形式の自動判定 ==========
+  function detectFormat(raw) {
+    const t = String(raw || '').replace(/^﻿/, '').trim();
+    if (!t) return 'none';
+    if (/^WEBVTT/.test(t)) return 'vtt';
+    // SRT: コンマ区切りミリ秒のタイムコードがあれば SRT とみなす
+    if (/\d{1,2}:\d{2}:\d{2},\d{3}\s*-->/.test(t)) return 'srt';
+    // 番号行 + タイムコードの並びがあれば SRT
+    if (/(^|\n)\s*\d+\s*\n\s*\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}\s*-->/.test(t)) return 'srt';
+    if (/-->/.test(t)) return 'vtt';
+    return 'none';
+  }
+
+  // ========== テキストからの取り込み（貼り付け） ==========
+  function importFromText(raw, mode) {
+    if (!raw || !raw.trim()) {
+      toast('テキストが空です');
+      return false;
+    }
+    const fmt = detectFormat(raw);
+    if (fmt === 'none') {
+      toast('字幕を検出できませんでした。VTT / SRT の全文を貼り付けてください');
+      return false;
+    }
+    const parsed = fmt === 'srt' ? parseSrt(raw) : parseVtt(raw);
+    if (parsed.length === 0) {
+      toast('字幕を検出できませんでした。形式を確認してください');
+      return false;
+    }
+    if (mode === 'append' && cues.length > 0) {
+      cues = cues.concat(parsed);
+    } else {
+      cues = parsed;
+      currentFileName = 'subtitles.vtt';
+    }
+    pushHistory();
+    autosave();
+    renderCues();
+    toast(`${parsed.length} 件の字幕を取り込みました（${fmt.toUpperCase()}）`);
+    return true;
   }
 
   function downloadVtt(cueList, fileName) {
@@ -1524,6 +1581,60 @@
     const base = baseName();
     downloadVtt(part1, `${base}_part1.vtt`);
     setTimeout(() => downloadVtt(part2, `${base}_part2.vtt`), 250);
+  }
+
+  // ========== 貼り付け取り込みモーダル ==========
+  function openPasteModal() {
+    const modal = $('vtt-paste-modal');
+    const ta = $('vtt-paste-text');
+    if (!modal || !ta) return;
+    // 既存があれば既定で「末尾に追加」を選択
+    const appendRadio = document.querySelector('input[name="vtt-paste-mode"][value="append"]');
+    const replaceRadio = document.querySelector('input[name="vtt-paste-mode"][value="replace"]');
+    if (cues.length > 0 && appendRadio) appendRadio.checked = true;
+    else if (replaceRadio) replaceRadio.checked = true;
+    modal.classList.remove('hidden');
+    updatePasteDetect();
+    ta.focus();
+  }
+
+  function closePasteModal() {
+    const modal = $('vtt-paste-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function updatePasteDetect() {
+    const ta = $('vtt-paste-text');
+    const out = $('vtt-paste-detect');
+    if (!ta || !out) return;
+    const raw = ta.value;
+    if (!raw.trim()) {
+      out.textContent = '';
+      out.className = 'vtt-paste-detect';
+      return;
+    }
+    const fmt = detectFormat(raw);
+    if (fmt === 'none') {
+      out.textContent = '形式を判定できません';
+      out.className = 'vtt-paste-detect none';
+    } else {
+      out.textContent = fmt.toUpperCase() + ' として取り込み';
+      out.className = 'vtt-paste-detect ' + fmt;
+    }
+  }
+
+  function confirmPasteImport() {
+    const ta = $('vtt-paste-text');
+    if (!ta) return;
+    const modeEl = document.querySelector('input[name="vtt-paste-mode"]:checked');
+    const mode = modeEl ? modeEl.value : 'replace';
+    if (mode === 'replace' && cues.length > 0) {
+      if (!confirm('現在の字幕を破棄して取り込みますか？')) return;
+    }
+    if (importFromText(ta.value, mode)) {
+      ta.value = '';
+      closePasteModal();
+    }
   }
 
   // ========== トースト ==========
