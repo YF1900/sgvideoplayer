@@ -368,6 +368,12 @@
     renderCues();
     renderGlossary();
     updateHistoryButtons();
+    // URL ハッシュからタブを選択（例: #replace, #glossary, #split）
+    const hash = (location.hash || '').replace('#', '');
+    if (hash) {
+      const tab = document.querySelector('.vtt-tab[data-tab="' + hash + '"]');
+      if (tab) tab.click();
+    }
   }
 
   function bindUI() {
