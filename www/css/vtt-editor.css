@@ -417,19 +417,55 @@
 }
 
 .vtt-empty {
-  padding: 40px 20px;
+  padding: 32px 20px 40px;
   text-align: center;
   color: var(--text-muted);
 }
 .vtt-empty p { margin: 6px 0; }
-.vtt-empty-sub { font-size: 12px; }
+.vtt-empty-sub { font-size: 12px; margin-top: 16px; }
 .vtt-empty-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
-  margin-top: 20px;
+  margin-top: 16px;
 }
+
+/* アップロード用ドロップゾーン */
+.vtt-dropzone {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 32px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elev);
+  border: 2px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.vtt-dropzone:hover { border-color: var(--accent); background: var(--bg-elev-2); }
+.vtt-dropzone:focus-visible { outline: none; border-color: var(--accent); }
+.vtt-dropzone.dragover {
+  border-color: var(--accent);
+  background: rgba(255, 94, 58, 0.08);
+}
+.vtt-dropzone-icon {
+  font-size: 46px;
+  color: var(--text-muted);
+}
+.vtt-dropzone:hover .vtt-dropzone-icon,
+.vtt-dropzone.dragover .vtt-dropzone-icon { color: var(--accent); }
+.vtt-dropzone-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 4px 0 0 !important;
+}
+.vtt-dropzone-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 !important; }
+.vtt-dropzone-btn { margin-top: 10px; pointer-events: none; }
 
 .vtt-cue {
   background: var(--bg-elev);

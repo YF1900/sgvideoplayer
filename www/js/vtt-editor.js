@@ -503,6 +503,30 @@
     // 動画プレビュー
     setupVideoPreview();
 
+    // 空状態のアップロード用ドロップゾーン
+    const dropzone = $('vtt-dropzone');
+    if (dropzone) {
+      dropzone.addEventListener('click', () => $('vtt-load-input').click());
+      dropzone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          $('vtt-load-input').click();
+        }
+      });
+      dropzone.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragleave', (e) => {
+        if (!dropzone.contains(e.relatedTarget)) dropzone.classList.remove('dragover');
+      });
+      dropzone.addEventListener('drop', () => dropzone.classList.remove('dragover'));
+    }
+
     // 空状態のサンプル読込ボタン
     document.querySelectorAll('[data-sample]').forEach((btn) => {
       btn.addEventListener('click', () => {

@@ -153,11 +153,18 @@
       </details>
       <div id="vtt-cues" class="vtt-cues"></div>
       <div id="vtt-empty" class="vtt-empty">
-        <p>VTT または SRT ファイルを読み込むか、「新規」から作成してください。</p>
-        <p class="vtt-empty-sub">番号は出力時に 1 から自動で振り直されます。</p>
-        <p class="vtt-empty-sub">ヒント: Ctrl+Z / Ctrl+Shift+Z で元に戻す/やり直し、Ctrl+S で保存。</p>
+        <div id="vtt-dropzone" class="vtt-dropzone" role="button" tabindex="0"
+             aria-label="VTT / SRT ファイルをアップロード（クリックで選択、ドラッグ＆ドロップ対応）">
+          <span class="material-symbols-outlined vtt-dropzone-icon" aria-hidden="true">upload_file</span>
+          <p class="vtt-dropzone-title">VTT / SRT ファイルをアップロード</p>
+          <p class="vtt-dropzone-sub">ここにファイルをドラッグ＆ドロップ、またはクリックして選択</p>
+          <span class="vtt-btn vtt-btn-primary vtt-dropzone-btn">
+            <span class="material-symbols-outlined" aria-hidden="true">file_open</span>
+            ファイルを選択
+          </span>
+        </div>
         <div class="vtt-empty-actions">
-          <button type="button" class="vtt-btn vtt-btn-primary" id="vtt-empty-paste">
+          <button type="button" class="vtt-btn" id="vtt-empty-paste">
             <span class="material-symbols-outlined" aria-hidden="true">content_paste</span>
             全文を貼り付けて取り込む
           </button>
@@ -170,6 +177,7 @@
             サンプル（検証用）を読み込む
           </button>
         </div>
+        <p class="vtt-empty-sub">番号は出力時に 1 から自動で振り直されます。ヒント: Ctrl+Z / Ctrl+Shift+Z で元に戻す/やり直し、Ctrl+S で保存。</p>
       </div>
     </section>
 
