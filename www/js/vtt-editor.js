@@ -20,7 +20,9 @@
   let filterQuery = '';
   let cpsThreshold = 20;
   let videoEl = null;
+  let captionEl = null;
   let followPlayback = true;
+  let captionOverlayEnabled = true;
   let lastPlayingCueId = -1;
 
   // ========== Undo/Redo 履歴 ==========
@@ -758,6 +760,8 @@
         autosave();
         debouncedPushHistory();
         updateCueBadges(node, c, idx);
+        // 編集中の字幕が再生位置にあればオーバーレイへ即反映
+        if (c.id === lastPlayingCueId) setCaptionText(c.text);
         // 統計の更新はやや遅延
         if (textEditTimer) clearTimeout(textEditTimer);
       });
@@ -1026,6 +1030,8 @@
     const close = document.getElementById('vtt-video-close');
     const timeLbl = document.getElementById('vtt-video-time');
     const followCb = document.getElementById('vtt-follow-playback');
+    const overlayCb = document.getElementById('vtt-caption-overlay');
+    captionEl = document.getElementById('vtt-video-caption');
     if (!videoEl || !panel || !toggle) return;
 
     toggle.addEventListener('click', () => {
@@ -1044,11 +1050,42 @@
     followCb.addEventListener('change', () => {
       followPlayback = followCb.checked;
     });
+    if (overlayCb) {
+      overlayCb.addEventListener('change', () => {
+        captionOverlayEnabled = overlayCb.checked;
+        refreshCaption();
+      });
+    }
     videoEl.addEventListener('timeupdate', () => {
       const t = videoEl.currentTime || 0;
       timeLbl.textContent = formatTime(t);
       highlightPlayingCue(t);
     });
+    // シーク時（停止中含む）もオーバーレイを更新
+    videoEl.addEventListener('seeked', refreshCaption);
+  }
+
+  // 現在の再生位置にある字幕をオーバーレイに反映
+  function setCaptionText(text) {
+    if (!captionEl) return;
+    if (captionOverlayEnabled && text && text.trim()) {
+      // VTT のタグ (<v ...>, <b> 等) は表示用に除去
+      captionEl.textContent = text.replace(/<[^>]+>/g, '');
+      captionEl.classList.add('show');
+    } else {
+      captionEl.textContent = '';
+      captionEl.classList.remove('show');
+    }
+  }
+
+  function refreshCaption() {
+    if (!videoEl) return;
+    const t = videoEl.currentTime || 0;
+    let active = null;
+    for (let i = 0; i < cues.length; i++) {
+      if (t >= cues[i].start && t < cues[i].end) { active = cues[i]; break; }
+    }
+    setCaptionText(active ? active.text : '');
   }
 
   function seekVideoTo(seconds) {
@@ -1067,6 +1104,8 @@
     }
     if (activeId === lastPlayingCueId) return;
     lastPlayingCueId = activeId;
+    const activeCue = activeId >= 0 ? cues.find((c) => c.id === activeId) : null;
+    setCaptionText(activeCue ? activeCue.text : '');
     const nodes = els.cuesContainer.querySelectorAll('.vtt-cue');
     nodes.forEach((n) => n.classList.remove('playing'));
     if (activeId < 0) return;
