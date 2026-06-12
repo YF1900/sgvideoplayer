@@ -24,6 +24,7 @@
   let followPlayback = true;
   let captionOverlayEnabled = true;
   let lastPlayingCueId = -1;
+  let draggingCueId = -1;
 
   // ========== Undo/Redo 履歴 ==========
   const HISTORY_LIMIT = 100;
@@ -784,6 +785,54 @@
       node.querySelector('.vtt-cue-down').addEventListener('click', () => moveCue(c.id, +1));
       node.querySelector('.vtt-cue-del').addEventListener('click', () => deleteCue(c.id));
 
+      // ドラッグ＆ドロップで並べ替え
+      const grip = node.querySelector('.vtt-cue-grip');
+      if (grip) {
+        grip.addEventListener('dragstart', (e) => {
+          draggingCueId = c.id;
+          node.classList.add('dragging');
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            try { e.dataTransfer.setData('text/plain', String(c.id)); } catch (_) {}
+            try { e.dataTransfer.setDragImage(node, 16, 16); } catch (_) {}
+          }
+        });
+        grip.addEventListener('dragend', () => {
+          draggingCueId = -1;
+          node.classList.remove('dragging');
+          els.cuesContainer
+            .querySelectorAll('.drag-over-top, .drag-over-bottom')
+            .forEach((n) => n.classList.remove('drag-over-top', 'drag-over-bottom'));
+        });
+      }
+      node.addEventListener('dragover', (e) => {
+        if (draggingCueId < 0) return; // 外部ファイルのドラッグは読込処理に委ねる
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        if (c.id === draggingCueId) return;
+        const rect = node.getBoundingClientRect();
+        const after = e.clientY - rect.top > rect.height / 2;
+        node.classList.toggle('drag-over-bottom', after);
+        node.classList.toggle('drag-over-top', !after);
+      });
+      node.addEventListener('dragleave', (e) => {
+        if (draggingCueId < 0) return;
+        if (!node.contains(e.relatedTarget)) {
+          node.classList.remove('drag-over-top', 'drag-over-bottom');
+        }
+      });
+      node.addEventListener('drop', (e) => {
+        if (draggingCueId < 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const after = node.classList.contains('drag-over-bottom');
+        node.classList.remove('drag-over-top', 'drag-over-bottom');
+        const fromId = draggingCueId;
+        draggingCueId = -1;
+        if (fromId !== c.id) reorderCue(fromId, c.id, after);
+      });
+
       const seekBtn = node.querySelector('.vtt-cue-seek');
       const setStartBtn = node.querySelector('.vtt-cue-set-start');
       const setEndBtn = node.querySelector('.vtt-cue-set-end');
@@ -1211,6 +1260,24 @@
     }
     if (!confirm(`${ids.size} 件の字幕を削除しますか？`)) return;
     cues = cues.filter((c) => !ids.has(c.id));
+    pushHistory();
+    autosave();
+    renderCues();
+  }
+
+  function reorderCue(fromId, toId, placeAfter) {
+    if (fromId === toId) return;
+    const fromIdx = cues.findIndex((c) => c.id === fromId);
+    if (fromIdx < 0) return;
+    const [moved] = cues.splice(fromIdx, 1);
+    let toIdx = cues.findIndex((c) => c.id === toId);
+    if (toIdx < 0) {
+      // ドロップ先が見つからなければ元に戻す
+      cues.splice(fromIdx, 0, moved);
+      return;
+    }
+    const insertAt = placeAfter ? toIdx + 1 : toIdx;
+    cues.splice(insertAt, 0, moved);
     pushHistory();
     autosave();
     renderCues();
