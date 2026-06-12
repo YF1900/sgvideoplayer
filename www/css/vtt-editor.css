@@ -1,0 +1,953 @@
+/* VTT 字幕エディタ */
+.vtt-body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.vtt-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(var(--safe-top) + 12px) 14px 12px;
+  background: var(--bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.vtt-header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vtt-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.vtt-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.vtt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.05s;
+}
+
+.vtt-btn:hover { background: var(--bg-elev-2); }
+.vtt-btn:active { transform: translateY(1px); }
+.vtt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.vtt-btn .material-symbols-outlined { font-size: 18px; }
+
+.vtt-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.vtt-btn-primary:hover { background: var(--accent-pressed); border-color: var(--accent-pressed); }
+
+.vtt-btn-danger {
+  background: var(--danger-bg);
+  border-color: rgba(255, 120, 145, 0.3);
+  color: var(--danger-fg);
+}
+.vtt-btn-danger:hover { background: #4d1d2a; }
+
+.vtt-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 14px 0;
+  background: var(--bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.vtt-tabs::-webkit-scrollbar { display: none; }
+
+.vtt-tab {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.vtt-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.vtt-main {
+  flex: 1;
+  min-height: 0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.vtt-panel { display: none; }
+/* 各タブはメイン領域いっぱいに広がり、はみ出しはパネル内でスクロール */
+.vtt-panel.active {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* 字幕タブだけは、上部（ツールバー/動画/検証）を固定し一覧のみスクロール */
+#vtt-panel-cues.active { overflow: hidden; }
+.vtt-cues-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.vtt-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: var(--bg-elev);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+/* 字幕タブ: 上部フレームは縮まず常時表示、一覧だけがスクロール */
+#vtt-panel-cues > .vtt-toolbar,
+#vtt-panel-cues > .vtt-video-panel,
+#vtt-panel-cues > .vtt-secondary-toolbar,
+#vtt-panel-cues > .vtt-issues {
+  flex-shrink: 0;
+}
+
+.vtt-toolbar-sep {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 2px;
+}
+
+.vtt-toolbar-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.vtt-toolbar-check input { accent-color: var(--accent); }
+
+.vtt-status {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.vtt-toolbar-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+.vtt-toolbar-field .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+.vtt-toolbar-field input[type="search"],
+.vtt-toolbar-field input[type="number"] {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  width: 140px;
+  outline: none;
+  padding: 4px 0;
+  font-family: inherit;
+}
+.vtt-toolbar-field input[type="number"] { width: 80px; }
+.vtt-toolbar-field input[type="search"]::-webkit-search-cancel-button {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+
+.vtt-btn-inline {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.vtt-shift-scope {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 5px 6px;
+  cursor: pointer;
+}
+.vtt-shift-scope:focus { outline: none; border-color: var(--accent); }
+
+.vtt-cue.filtered { display: none; }
+.vtt-cue mark {
+  background: rgba(255, 94, 58, 0.4);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.vtt-cue.playing {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* Badges (CPS / overlap / duration warnings) */
+.vtt-cue-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.vtt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg-elev-2);
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.vtt-badge-warn {
+  background: rgba(255, 184, 0, 0.12);
+  color: #ffc457;
+  border-color: rgba(255, 184, 0, 0.3);
+}
+.vtt-badge-danger {
+  background: rgba(255, 120, 145, 0.12);
+  color: var(--danger-fg);
+  border-color: rgba(255, 120, 145, 0.3);
+}
+
+/* Header overflow menu */
+.vtt-menu-wrap { position: relative; }
+.vtt-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  background: var(--bg-elev-2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+}
+.vtt-popup hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 4px 0;
+}
+.vtt-popup-item {
+  background: transparent;
+  color: var(--text);
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+.vtt-popup-item:hover { background: rgba(255, 255, 255, 0.06); }
+
+/* Secondary toolbar (under main toolbar in cues panel) */
+.vtt-secondary-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+/* Video preview panel */
+.vtt-video-panel {
+  background: #000;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vtt-video-stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  background: #000;
+  border-radius: 6px;
+}
+.vtt-video-panel video {
+  width: 100%;
+  max-height: min(320px, 38dvh);
+  background: #000;
+  border-radius: 6px;
+  display: block;
+}
+/* 動画上に重ねる字幕オーバーレイ */
+.vtt-video-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  transform: translateX(-50%);
+  max-width: 92%;
+  padding: 2px 10px;
+  text-align: center;
+  white-space: pre-line;
+  font-size: clamp(14px, 3.2vw, 22px);
+  font-weight: 600;
+  line-height: 1.35;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  display: none;
+}
+.vtt-video-caption.show { display: block; }
+.vtt-video-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 12px;
+}
+.vtt-video-time {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* 検証サマリ */
+.vtt-issues {
+  margin-bottom: 12px;
+  background: var(--bg-elev);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.vtt-issues[data-severity="warn"] { border-color: rgba(255, 184, 0, 0.4); }
+.vtt-issues[data-severity="danger"] { border-color: rgba(255, 120, 145, 0.4); }
+.vtt-issues > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  user-select: none;
+}
+.vtt-issues > summary::-webkit-details-marker { display: none; }
+.vtt-issues > summary .material-symbols-outlined { font-size: 18px; color: var(--text-muted); }
+.vtt-issues[data-severity="warn"] > summary .material-symbols-outlined { color: #ffc457; }
+.vtt-issues[data-severity="danger"] > summary .material-symbols-outlined { color: var(--danger-fg); }
+.vtt-issues-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.vtt-issues-list li {
+  padding: 8px 14px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vtt-issues-list li:last-child { border-bottom: none; }
+.vtt-issues-list li:hover { background: rgba(255, 255, 255, 0.04); color: var(--text); }
+.vtt-issues-list .vtt-issue-num {
+  display: inline-flex;
+  min-width: 28px;
+  padding: 2px 6px;
+  background: var(--bg-elev-2);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  justify-content: center;
+}
+.vtt-issues-list .vtt-issue-tag {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(255, 184, 0, 0.12);
+  color: #ffc457;
+}
+.vtt-issues-list .vtt-issue-tag.danger {
+  background: rgba(255, 120, 145, 0.12);
+  color: var(--danger-fg);
+}
+
+/* ステータスバー */
+.vtt-statusbar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px calc(var(--safe-bottom) + 8px);
+  background: rgba(11, 15, 23, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  color: var(--text-muted);
+  z-index: 8;
+}
+.vtt-statusbar-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vtt-statusbar-item:first-child { max-width: 200px; }
+.vtt-statusbar-sep { width: 1px; height: 14px; background: rgba(255, 255, 255, 0.1); }
+.vtt-statusbar-spacer { flex: 1; }
+.vtt-statusbar-hint { font-size: 11px; opacity: 0.7; }
+.vtt-statusbar-item.has-warn { color: #ffc457; }
+.vtt-statusbar-item.has-danger { color: var(--danger-fg); }
+
+@media (max-width: 720px) {
+  .vtt-statusbar-hint { display: none; }
+  .vtt-statusbar-item:first-child { max-width: 100px; }
+  .vtt-cue-head { gap: 4px; }
+  .vtt-cue-num { min-width: 26px; padding: 2px 6px; font-size: 11px; }
+  .vtt-cue-badges { flex-basis: 100%; order: 5; }
+  .vtt-secondary-toolbar { gap: 8px; font-size: 11px; }
+}
+
+.vtt-cues {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vtt-empty {
+  padding: 32px 20px 40px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.vtt-empty p { margin: 6px 0; }
+.vtt-empty-sub { font-size: 12px; margin-top: 16px; }
+.vtt-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* アップロード用ドロップゾーン */
+.vtt-dropzone {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 32px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elev);
+  border: 2px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.vtt-dropzone:hover { border-color: var(--accent); background: var(--bg-elev-2); }
+.vtt-dropzone:focus-visible { outline: none; border-color: var(--accent); }
+.vtt-dropzone.dragover {
+  border-color: var(--accent);
+  background: rgba(255, 94, 58, 0.08);
+}
+.vtt-dropzone-icon {
+  font-size: 46px;
+  color: var(--text-muted);
+}
+.vtt-dropzone:hover .vtt-dropzone-icon,
+.vtt-dropzone.dragover .vtt-dropzone-icon { color: var(--accent); }
+.vtt-dropzone-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 4px 0 0 !important;
+}
+.vtt-dropzone-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 !important; }
+.vtt-dropzone-btn { margin-top: 10px; pointer-events: none; }
+
+.vtt-cue {
+  background: var(--bg-elev);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vtt-cue.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.vtt-cue.invalid {
+  border-color: #ff7891;
+}
+
+.vtt-cue-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.vtt-cue-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+}
+.vtt-cue-grip:hover { background: var(--bg-elev-2); color: var(--text); }
+.vtt-cue-grip:active { cursor: grabbing; }
+.vtt-cue-grip .material-symbols-outlined { font-size: 20px; }
+
+.vtt-cue.dragging { opacity: 0.45; }
+.vtt-cue.drag-over-top { box-shadow: inset 0 3px 0 0 var(--accent); }
+.vtt-cue.drag-over-bottom { box-shadow: inset 0 -3px 0 0 var(--accent); }
+
+.vtt-cue-select { display: inline-flex; align-items: center; }
+.vtt-cue-check { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+
+.vtt-cue-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding: 2px 8px;
+  background: var(--bg-elev-2);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.vtt-cue-start, .vtt-cue-end {
+  width: 120px;
+  padding: 6px 8px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12.5px;
+}
+
+.vtt-cue-start:focus, .vtt-cue-end:focus, .vtt-cue-id:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.vtt-cue-arrow {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.vtt-cue-id {
+  flex: 1;
+  min-width: 100px;
+  padding: 6px 8px;
+  background: var(--bg);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.vtt-cue-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.vtt-cue-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.vtt-cue-btn:hover { background: var(--bg-elev-2); color: var(--text); }
+.vtt-cue-btn .material-symbols-outlined { font-size: 18px; }
+.vtt-cue-del:hover { color: var(--danger-fg); }
+
+.vtt-cue-text {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 44px;
+}
+.vtt-cue-text:focus { outline: none; border-color: var(--accent); }
+
+/* フォーム共通 */
+.vtt-form {
+  background: var(--bg-elev);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 720px;
+}
+
+.vtt-form-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.vtt-form-title:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+
+.vtt-form-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.vtt-form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 200px;
+}
+.vtt-form-row input[type="text"], .vtt-form-row input[type="number"] {
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+.vtt-form-row input:focus { outline: none; border-color: var(--accent); }
+
+.vtt-form-row-checks { gap: 16px; flex-wrap: wrap; }
+.vtt-form-row-checks label {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: auto;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--text);
+}
+.vtt-form-row-checks input { accent-color: var(--accent); flex: 0 0 auto; }
+
+.vtt-form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.vtt-form-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.vtt-form-hint code {
+  background: var(--bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+
+.vtt-replace-result {
+  margin-top: 14px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: var(--bg-elev);
+  border-radius: 8px;
+  display: none;
+  white-space: pre-wrap;
+}
+.vtt-replace-result.show { display: block; }
+
+/* 用語集 */
+.vtt-glossary-help {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.vtt-glossary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vtt-glossary-empty {
+  padding: 28px;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--bg-elev);
+  border-radius: 10px;
+}
+
+.vtt-glossary-row {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  background: var(--bg-elev);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.vtt-glossary-row.disabled .vtt-glossary-from,
+.vtt-glossary-row.disabled .vtt-glossary-to { opacity: 0.5; }
+
+.vtt-glossary-row input[type="text"] {
+  padding: 7px 9px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 13px;
+  width: 100%;
+}
+.vtt-glossary-row input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+.vtt-glossary-row input[type="checkbox"] { accent-color: var(--accent); }
+
+.vtt-glossary-options {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.vtt-glossary-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.vtt-glossary-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.vtt-glossary-del:hover { background: var(--bg-elev-2); color: var(--danger-fg); }
+.vtt-glossary-del .material-symbols-outlined { font-size: 18px; }
+
+/* トースト */
+.vtt-toast {
+  position: fixed;
+  bottom: calc(var(--safe-bottom) + 24px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  font-size: 13px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.vtt-toast.show {
+  opacity: 1;
+}
+
+/* 貼り付け取り込みモーダル */
+.vtt-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.vtt-modal.hidden { display: none; }
+.vtt-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.vtt-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-elev);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.vtt-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vtt-modal-head h2 {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.vtt-modal-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+.vtt-paste-text {
+  width: 100%;
+  flex: 1;
+  min-height: 220px;
+  resize: vertical;
+  padding: 10px 12px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.vtt-paste-text:focus { outline: none; border-color: var(--accent); }
+.vtt-paste-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.vtt-paste-row .vtt-toolbar-check { color: var(--text); font-size: 13px; }
+.vtt-paste-detect {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.vtt-paste-detect.vtt { color: #6fd08c; }
+.vtt-paste-detect.srt { color: #ffc457; }
+.vtt-paste-detect.none { color: var(--danger-fg); }
+
+@media (max-width: 720px) {
+  .vtt-btn-label { display: none; }
+  .vtt-cue-start, .vtt-cue-end { width: 110px; font-size: 12px; }
+  .vtt-cue-id { width: 100%; flex-basis: 100%; }
+  .vtt-cue-actions { margin-left: 0; }
+  .vtt-glossary-row {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "enable from del"
+      "enable to del"
+      "enable opts opts";
+    gap: 6px;
+  }
+  .vtt-glossary-row .vtt-glossary-enable { grid-area: enable; }
+  .vtt-glossary-row .vtt-glossary-from { grid-area: from; }
+  .vtt-glossary-row .vtt-glossary-to { grid-area: to; }
+  .vtt-glossary-row .vtt-glossary-options { grid-area: opts; }
+  .vtt-glossary-row .vtt-glossary-del { grid-area: del; align-self: center; }
+  .vtt-toolbar { position: static; }
+}

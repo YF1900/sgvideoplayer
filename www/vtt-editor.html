@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f17" />
+  <title>VTT 字幕エディタ</title>
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+  />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/vtt-editor.css" />
+</head>
+<body class="vtt-body">
+  <header class="vtt-header">
+    <a href="index.html" class="header-icon-btn vtt-back" aria-label="戻る" title="戻る">
+      <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+    </a>
+    <h1>VTT 字幕エディタ</h1>
+    <div class="vtt-header-actions">
+      <button id="vtt-load-btn" class="vtt-btn" type="button" title="VTT ファイルを読み込み">
+        <span class="material-symbols-outlined" aria-hidden="true">file_open</span>
+        <span class="vtt-btn-label">読み込み</span>
+      </button>
+      <button id="vtt-paste-btn" class="vtt-btn" type="button" title="全文を貼り付けて取り込み">
+        <span class="material-symbols-outlined" aria-hidden="true">content_paste</span>
+        <span class="vtt-btn-label">貼り付け</span>
+      </button>
+      <button id="vtt-save-btn" class="vtt-btn vtt-btn-primary" type="button" title="VTT ファイルとして保存">
+        <span class="material-symbols-outlined" aria-hidden="true">file_download</span>
+        <span class="vtt-btn-label">保存</span>
+      </button>
+      <div class="vtt-menu-wrap">
+        <button id="vtt-more-btn" class="vtt-btn" type="button" title="他の操作" aria-haspopup="true" aria-expanded="false">
+          <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
+        </button>
+        <div id="vtt-more-menu" class="vtt-popup hidden" role="menu">
+          <button class="vtt-popup-item" id="vtt-export-srt" type="button">SRT として書き出し</button>
+          <button class="vtt-popup-item" id="vtt-import-srt" type="button">SRT を取り込む</button>
+          <hr />
+          <button class="vtt-popup-item" id="vtt-auto-fix" type="button">自動修正（重複/最小尺）</button>
+          <button class="vtt-popup-item" id="vtt-renumber" type="button">IDを 1 から振り直す</button>
+        </div>
+      </div>
+      <input id="vtt-load-input" type="file" accept=".vtt,.srt,text/vtt,text/plain" hidden />
+      <input id="vtt-load-srt-input" type="file" accept=".srt,text/plain" hidden />
+    </div>
+  </header>
+
+  <nav class="vtt-tabs" role="tablist">
+    <button class="vtt-tab active" data-tab="cues" type="button" role="tab">字幕一覧</button>
+    <button class="vtt-tab" data-tab="replace" type="button" role="tab">置換</button>
+    <button class="vtt-tab" data-tab="glossary" type="button" role="tab">用語集</button>
+    <button class="vtt-tab" data-tab="split" type="button" role="tab">分割</button>
+  </nav>
+
+  <main class="vtt-main">
+    <!-- 字幕一覧 -->
+    <section id="vtt-panel-cues" class="vtt-panel active" role="tabpanel">
+      <div class="vtt-toolbar">
+        <button id="vtt-new-btn" class="vtt-btn" type="button" title="空のファイルとして開始">
+          <span class="material-symbols-outlined" aria-hidden="true">note_add</span>
+          <span class="vtt-btn-label">新規</span>
+        </button>
+        <button id="vtt-add-cue-btn" class="vtt-btn" type="button" title="末尾に字幕を追加">
+          <span class="material-symbols-outlined" aria-hidden="true">add</span>
+          <span class="vtt-btn-label">追加</span>
+        </button>
+        <span class="vtt-toolbar-sep"></span>
+        <button id="vtt-undo-btn" class="vtt-btn" type="button" title="元に戻す (Ctrl+Z)" disabled>
+          <span class="material-symbols-outlined" aria-hidden="true">undo</span>
+          <span class="vtt-btn-label">元に戻す</span>
+        </button>
+        <button id="vtt-redo-btn" class="vtt-btn" type="button" title="やり直し (Ctrl+Shift+Z)" disabled>
+          <span class="material-symbols-outlined" aria-hidden="true">redo</span>
+          <span class="vtt-btn-label">やり直し</span>
+        </button>
+        <span class="vtt-toolbar-sep"></span>
+        <button id="vtt-select-all-btn" class="vtt-btn" type="button" title="すべて選択 / 解除">
+          <span class="material-symbols-outlined" aria-hidden="true">checklist</span>
+          <span class="vtt-btn-label">全選択</span>
+        </button>
+        <button id="vtt-merge-btn" class="vtt-btn" type="button" title="選択した字幕を1つに結合">
+          <span class="material-symbols-outlined" aria-hidden="true">cell_merge</span>
+          <span class="vtt-btn-label">結合</span>
+        </button>
+        <button id="vtt-delete-btn" class="vtt-btn vtt-btn-danger" type="button" title="選択した字幕を削除">
+          <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+          <span class="vtt-btn-label">削除</span>
+        </button>
+        <span class="vtt-toolbar-sep"></span>
+        <label class="vtt-toolbar-check">
+          <input type="checkbox" id="vtt-merge-newline" checked />
+          結合は改行で連結
+        </label>
+        <span class="vtt-toolbar-sep"></span>
+        <div class="vtt-toolbar-field">
+          <span class="material-symbols-outlined" aria-hidden="true">search</span>
+          <input id="vtt-filter" type="search" placeholder="字幕を検索…" />
+        </div>
+        <div class="vtt-toolbar-field" title="時間シフト (秒)">
+          <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
+          <input id="vtt-shift-amount" type="number" step="0.001" placeholder="±秒" />
+          <button id="vtt-shift-apply" class="vtt-btn vtt-btn-inline" type="button" title="時間シフトを適用">
+            シフト
+          </button>
+          <select id="vtt-shift-scope" class="vtt-shift-scope" title="シフト対象の範囲">
+            <option value="all">全体</option>
+            <option value="selected">選択中のみ</option>
+            <option value="after">選択行以降</option>
+          </select>
+        </div>
+        <span id="vtt-status" class="vtt-status">字幕: 0 件</span>
+      </div>
+      <div id="vtt-video-panel" class="vtt-video-panel hidden">
+        <div class="vtt-video-stage">
+          <video id="vtt-video" controls preload="metadata"></video>
+          <div id="vtt-video-caption" class="vtt-video-caption" aria-hidden="true"></div>
+        </div>
+        <div class="vtt-video-controls">
+          <button class="vtt-btn vtt-btn-inline" type="button" id="vtt-video-pick" title="動画ファイルを選択">
+            <span class="material-symbols-outlined" aria-hidden="true">movie</span>
+            動画
+          </button>
+          <input id="vtt-video-input" type="file" accept="video/*,audio/*" hidden />
+          <span class="vtt-video-time" id="vtt-video-time">00:00:00.000</span>
+          <button class="vtt-btn vtt-btn-inline" type="button" id="vtt-video-close" title="動画を閉じる">
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+          </button>
+        </div>
+      </div>
+      <div class="vtt-secondary-toolbar">
+        <button class="vtt-btn vtt-btn-inline" type="button" id="vtt-video-toggle">
+          <span class="material-symbols-outlined" aria-hidden="true">play_circle</span>
+          動画プレビュー
+        </button>
+        <label class="vtt-toolbar-check" title="プレビュー再生時に現在の字幕までスクロール">
+          <input type="checkbox" id="vtt-follow-playback" checked />
+          自動スクロール
+        </label>
+        <label class="vtt-toolbar-check" title="再生中の字幕を動画の上に重ねて表示">
+          <input type="checkbox" id="vtt-caption-overlay" checked />
+          字幕オーバーレイ
+        </label>
+        <span class="vtt-toolbar-sep"></span>
+        <label class="vtt-toolbar-check" title="字幕の文字/秒 (CPS) のしきい値。これを超えると警告表示">
+          CPS 警告:
+          <input type="number" id="vtt-cps-threshold" min="5" max="40" step="1" value="20" style="width:54px;background:var(--bg);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:2px 4px;font-size:12px;" />
+        </label>
+      </div>
+      <details id="vtt-issues" class="vtt-issues">
+        <summary>
+          <span class="material-symbols-outlined" aria-hidden="true">report</span>
+          <span id="vtt-issues-summary">問題なし</span>
+        </summary>
+        <ul id="vtt-issues-list" class="vtt-issues-list"></ul>
+      </details>
+      <div class="vtt-cues-scroll">
+      <div id="vtt-cues" class="vtt-cues"></div>
+      <div id="vtt-empty" class="vtt-empty">
+        <div id="vtt-dropzone" class="vtt-dropzone" role="button" tabindex="0"
+             aria-label="VTT / SRT ファイルをアップロード（クリックで選択、ドラッグ＆ドロップ対応）">
+          <span class="material-symbols-outlined vtt-dropzone-icon" aria-hidden="true">upload_file</span>
+          <p class="vtt-dropzone-title">VTT / SRT ファイルをアップロード</p>
+          <p class="vtt-dropzone-sub">ここにファイルをドラッグ＆ドロップ、またはクリックして選択</p>
+          <span class="vtt-btn vtt-btn-primary vtt-dropzone-btn">
+            <span class="material-symbols-outlined" aria-hidden="true">file_open</span>
+            ファイルを選択
+          </span>
+        </div>
+        <div class="vtt-empty-actions">
+          <button type="button" class="vtt-btn" id="vtt-empty-paste">
+            <span class="material-symbols-outlined" aria-hidden="true">content_paste</span>
+            全文を貼り付けて取り込む
+          </button>
+          <button type="button" class="vtt-btn" data-sample="samples/demo-clean.vtt">
+            <span class="material-symbols-outlined" aria-hidden="true">play_lesson</span>
+            サンプル（標準）を読み込む
+          </button>
+          <button type="button" class="vtt-btn" data-sample="samples/demo-issues.vtt">
+            <span class="material-symbols-outlined" aria-hidden="true">report</span>
+            サンプル（検証用）を読み込む
+          </button>
+        </div>
+        <p class="vtt-empty-sub">番号は出力時に 1 から自動で振り直されます。ヒント: Ctrl+Z / Ctrl+Shift+Z で元に戻す/やり直し、Ctrl+S で保存。</p>
+      </div>
+      </div>
+    </section>
+
+    <!-- 置換 -->
+    <section id="vtt-panel-replace" class="vtt-panel" role="tabpanel">
+      <div class="vtt-form">
+        <div class="vtt-form-row">
+          <label>検索文字列<input id="vtt-find" type="text" placeholder="検索する文字列" /></label>
+          <label>置換後<input id="vtt-replace" type="text" placeholder="置き換える文字列" /></label>
+        </div>
+        <div class="vtt-form-row vtt-form-row-checks">
+          <label><input type="checkbox" id="vtt-opt-case" />大文字小文字を区別</label>
+          <label><input type="checkbox" id="vtt-opt-word" />単語単位で一致</label>
+          <label><input type="checkbox" id="vtt-opt-regex" />正規表現</label>
+          <label><input type="checkbox" id="vtt-opt-selected" />選択中の字幕のみ</label>
+        </div>
+        <div class="vtt-form-actions">
+          <button id="vtt-replace-preview" class="vtt-btn" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+            <span class="vtt-btn-label">プレビュー</span>
+          </button>
+          <button id="vtt-replace-apply" class="vtt-btn vtt-btn-primary" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">find_replace</span>
+            <span class="vtt-btn-label">置換を実行</span>
+          </button>
+          <button id="vtt-replace-add-glossary" class="vtt-btn" type="button" title="この検索/置換ペアを用語集に追加">
+            <span class="material-symbols-outlined" aria-hidden="true">bookmark_add</span>
+            <span class="vtt-btn-label">用語集に登録</span>
+          </button>
+        </div>
+        <div class="vtt-form-hint">「単語単位で一致」は英単語境界 (\b) に基づきます。日本語ではチェックを外してください。</div>
+      </div>
+      <div id="vtt-replace-result" class="vtt-replace-result"></div>
+    </section>
+
+    <!-- 用語集 -->
+    <section id="vtt-panel-glossary" class="vtt-panel" role="tabpanel">
+      <div class="vtt-toolbar">
+        <button id="vtt-glossary-add" class="vtt-btn" type="button">
+          <span class="material-symbols-outlined" aria-hidden="true">add</span>
+          <span class="vtt-btn-label">エントリ追加</span>
+        </button>
+        <button id="vtt-glossary-apply" class="vtt-btn vtt-btn-primary" type="button" title="有効な用語集エントリをすべて適用">
+          <span class="material-symbols-outlined" aria-hidden="true">play_arrow</span>
+          <span class="vtt-btn-label">一括適用</span>
+        </button>
+        <span class="vtt-toolbar-sep"></span>
+        <button id="vtt-glossary-export" class="vtt-btn" type="button">
+          <span class="material-symbols-outlined" aria-hidden="true">download</span>
+          <span class="vtt-btn-label">JSONで書き出し</span>
+        </button>
+        <button id="vtt-glossary-import" class="vtt-btn" type="button">
+          <span class="material-symbols-outlined" aria-hidden="true">upload</span>
+          <span class="vtt-btn-label">JSONで取り込み</span>
+        </button>
+        <input id="vtt-glossary-import-input" type="file" accept="application/json,.json" hidden />
+        <span class="vtt-toolbar-sep"></span>
+        <label class="vtt-toolbar-check">
+          <input type="checkbox" id="vtt-glossary-apply-selected" />
+          選択中のみに適用
+        </label>
+      </div>
+      <div class="vtt-glossary-help">
+        登録した用語は <strong>有効</strong> のみが「一括適用」対象です。エントリは自動でこのブラウザに保存されます。
+      </div>
+      <div id="vtt-glossary-list" class="vtt-glossary-list"></div>
+    </section>
+
+    <!-- 分割 -->
+    <section id="vtt-panel-split" class="vtt-panel" role="tabpanel">
+      <div class="vtt-form">
+        <h3 class="vtt-form-title">字幕番号で分割</h3>
+        <div class="vtt-form-row">
+          <label>分割位置（この番号<strong>から</strong>後半に入る）
+            <input id="vtt-split-index" type="number" min="2" step="1" placeholder="例: 50" />
+          </label>
+        </div>
+        <div class="vtt-form-actions">
+          <button id="vtt-split-by-index" class="vtt-btn vtt-btn-primary" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">content_cut</span>
+            <span class="vtt-btn-label">番号で分割して保存</span>
+          </button>
+        </div>
+        <h3 class="vtt-form-title">時間で分割</h3>
+        <div class="vtt-form-row">
+          <label>分割時刻（HH:MM:SS.mmm）
+            <input id="vtt-split-time" type="text" placeholder="00:05:00.000" />
+          </label>
+        </div>
+        <div class="vtt-form-actions">
+          <button id="vtt-split-by-time" class="vtt-btn vtt-btn-primary" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
+            <span class="vtt-btn-label">時間で分割して保存</span>
+          </button>
+        </div>
+        <div class="vtt-form-hint">
+          分割すると 2 つの VTT ファイル (<code>_part1.vtt</code> / <code>_part2.vtt</code>) がダウンロードされます。
+          後半ファイルでは番号は 1 から振り直されます。
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vtt-statusbar">
+    <span class="vtt-statusbar-item" id="vtt-stat-file">subtitles.vtt</span>
+    <span class="vtt-statusbar-sep"></span>
+    <span class="vtt-statusbar-item" id="vtt-stat-cues">0 件</span>
+    <span class="vtt-statusbar-sep"></span>
+    <span class="vtt-statusbar-item" id="vtt-stat-duration">00:00:00</span>
+    <span class="vtt-statusbar-sep"></span>
+    <span class="vtt-statusbar-item" id="vtt-stat-warnings">警告 0</span>
+    <span class="vtt-statusbar-spacer"></span>
+    <span class="vtt-statusbar-item vtt-statusbar-hint">Ctrl+Z 元に戻す / Ctrl+S 保存</span>
+  </footer>
+
+  <!-- 貼り付け取り込みモーダル -->
+  <div id="vtt-paste-modal" class="vtt-modal hidden" role="dialog" aria-modal="true" aria-labelledby="vtt-paste-title">
+    <div class="vtt-modal-backdrop" id="vtt-paste-backdrop"></div>
+    <div class="vtt-modal-card">
+      <header class="vtt-modal-head">
+        <h2 id="vtt-paste-title">全文を貼り付けて取り込む</h2>
+        <button type="button" class="vtt-cue-btn" id="vtt-paste-close" title="閉じる" aria-label="閉じる">
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      </header>
+      <p class="vtt-modal-desc">
+        WEBVTT または SRT の全文を貼り付けてください。形式は自動判定し、字幕ごとに分割して取り込みます。
+      </p>
+      <textarea id="vtt-paste-text" class="vtt-paste-text" spellcheck="false"
+        placeholder="WEBVTT&#10;&#10;1&#10;00:00:00.000 --> 00:00:02.000&#10;最初の字幕&#10;&#10;2&#10;00:00:02.000 --> 00:00:04.000&#10;次の字幕"></textarea>
+      <div class="vtt-paste-row">
+        <label class="vtt-toolbar-check">
+          <input type="radio" name="vtt-paste-mode" value="replace" checked />
+          既存を置き換え
+        </label>
+        <label class="vtt-toolbar-check">
+          <input type="radio" name="vtt-paste-mode" value="append" />
+          末尾に追加
+        </label>
+        <span class="vtt-paste-detect" id="vtt-paste-detect"></span>
+      </div>
+      <div class="vtt-form-actions">
+        <button type="button" id="vtt-paste-import" class="vtt-btn vtt-btn-primary">
+          <span class="material-symbols-outlined" aria-hidden="true">content_cut</span>
+          <span class="vtt-btn-label">取り込んで分割</span>
+        </button>
+        <button type="button" id="vtt-paste-cancel" class="vtt-btn">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="vtt-toast" class="vtt-toast hidden"></div>
+
+  <!-- 字幕行テンプレート -->
+  <template id="vtt-cue-template">
+    <article class="vtt-cue">
+      <header class="vtt-cue-head">
+        <button type="button" class="vtt-cue-grip" draggable="true" title="ドラッグで並べ替え" aria-label="ドラッグで並べ替え">
+          <span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span>
+        </button>
+        <label class="vtt-cue-select"><input type="checkbox" class="vtt-cue-check" /></label>
+        <span class="vtt-cue-num"></span>
+        <input type="text" class="vtt-cue-start" placeholder="00:00:00.000" />
+        <span class="vtt-cue-arrow">→</span>
+        <input type="text" class="vtt-cue-end" placeholder="00:00:00.000" />
+        <input type="text" class="vtt-cue-id" placeholder="ID（任意）" />
+        <div class="vtt-cue-badges"></div>
+        <div class="vtt-cue-actions">
+          <button type="button" class="vtt-cue-btn vtt-cue-seek" title="動画をこの字幕の開始位置へ">
+            <span class="material-symbols-outlined" aria-hidden="true">play_arrow</span>
+          </button>
+          <button type="button" class="vtt-cue-btn vtt-cue-set-start" title="現在の動画位置を開始時刻に">
+            <span class="material-symbols-outlined" aria-hidden="true">first_page</span>
+          </button>
+          <button type="button" class="vtt-cue-btn vtt-cue-set-end" title="現在の動画位置を終了時刻に">
+            <span class="material-symbols-outlined" aria-hidden="true">last_page</span>
+          </button>
+          <button type="button" class="vtt-cue-btn vtt-cue-merge-next" title="次の字幕と結合">
+            <span class="material-symbols-outlined" aria-hidden="true">cell_merge</span>
+          </button>
+          <button type="button" class="vtt-cue-btn vtt-cue-insert-after" title="この後に追加">
+            <span class="material-symbols-outlined" aria-hidden="true">playlist_add</span>
+          </button>
+          <button type="button" class="vtt-cue-btn vtt-cue-up" title="上へ">
+            <span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span>
+          </button>
+          <button type="button" class="vtt-cue-btn vtt-cue-down" title="下へ">
+            <span class="material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+          </button>
+          <button type="button" class="vtt-cue-btn vtt-cue-del" title="削除">
+            <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+          </button>
+        </div>
+      </header>
+      <textarea class="vtt-cue-text" rows="2" placeholder="字幕テキスト"></textarea>
+    </article>
+  </template>
+
+  <script src="js/vtt-editor.js"></script>
+</body>
+</html>
