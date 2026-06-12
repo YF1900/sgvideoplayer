@@ -1250,8 +1250,21 @@
       toast('シフト秒数を入力してください');
       return;
     }
-    const onlySelected = $('vtt-shift-selected').checked;
-    const targetCues = onlySelected ? getSelectedCues() : cues;
+    const scope = ($('vtt-shift-scope') || {}).value || 'all';
+    let targetCues;
+    if (scope === 'selected') {
+      targetCues = getSelectedCues();
+    } else if (scope === 'after') {
+      const selIds = new Set(getSelectedIds());
+      const firstIdx = cues.findIndex((c) => selIds.has(c.id));
+      if (firstIdx < 0) {
+        toast('基点となる行を選択してください（その行以降をシフトします）');
+        return;
+      }
+      targetCues = cues.slice(firstIdx);
+    } else {
+      targetCues = cues;
+    }
     if (targetCues.length === 0) {
       toast('対象の字幕がありません');
       return;

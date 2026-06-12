@@ -108,10 +108,11 @@
           <button id="vtt-shift-apply" class="vtt-btn vtt-btn-inline" type="button" title="時間シフトを適用">
             シフト
           </button>
-          <label class="vtt-toolbar-check" title="チェック時は選択中のみシフト">
-            <input type="checkbox" id="vtt-shift-selected" />
-            選択中のみ
-          </label>
+          <select id="vtt-shift-scope" class="vtt-shift-scope" title="シフト対象の範囲">
+            <option value="all">全体</option>
+            <option value="selected">選択中のみ</option>
+            <option value="after">選択行以降</option>
+          </select>
         </div>
         <span id="vtt-status" class="vtt-status">字幕: 0 件</span>
       </div>
