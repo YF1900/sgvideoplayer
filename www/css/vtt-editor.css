@@ -2,8 +2,9 @@
 .vtt-body {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
 }
@@ -110,10 +111,27 @@
   flex: 1;
   min-height: 0;
   padding: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .vtt-panel { display: none; }
-.vtt-panel.active { display: block; }
+/* 各タブはメイン領域いっぱいに広がり、はみ出しはパネル内でスクロール */
+.vtt-panel.active {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* 字幕タブだけは、上部（ツールバー/動画/検証）を固定し一覧のみスクロール */
+#vtt-panel-cues.active { overflow: hidden; }
+.vtt-cues-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
 
 .vtt-toolbar {
   display: flex;
@@ -125,8 +143,16 @@
   border-radius: 10px;
   margin-bottom: 12px;
   position: sticky;
-  top: calc(var(--safe-top) + 96px);
+  top: 0;
   z-index: 5;
+}
+
+/* 字幕タブ: 上部フレームは縮まず常時表示、一覧だけがスクロール */
+#vtt-panel-cues > .vtt-toolbar,
+#vtt-panel-cues > .vtt-video-panel,
+#vtt-panel-cues > .vtt-secondary-toolbar,
+#vtt-panel-cues > .vtt-issues {
+  flex-shrink: 0;
 }
 
 .vtt-toolbar-sep {
@@ -305,7 +331,7 @@
 }
 .vtt-video-panel video {
   width: 100%;
-  max-height: 320px;
+  max-height: min(320px, 38dvh);
   background: #000;
   border-radius: 6px;
   display: block;
